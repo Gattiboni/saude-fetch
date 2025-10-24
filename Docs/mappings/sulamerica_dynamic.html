@@ -1,0 +1,316 @@
+<html dir="ltr" lang="pt" data-theme="&amp;UiTheme&amp;"><head>
+		<meta charset="UTF-8">
+		<meta content="IE=edge" http-equiv="X-UA-Compatible">
+		<meta http-equiv="Pragma" content="no-cache">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="color-scheme" content="light dark">
+		<noscript>
+			<meta http-equiv="REFRESH" content="0; url=https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx?4BE6CA09-B438-46AA-BC33-6FDAF3A9FADF_saas_cup_B2E7DBCB_5BD4_4A23_86A9_329C9410AC8F_c0o=">
+		</noscript>
+	<title>Safe Money</title></head>
+	<body class="body-background" tag="common-intermediate" style="overflow: hidden;">
+		<script type="text/javascript">
+function getHiddenPropertyName()
+{
+	if ('hidden' in document) return 'hidden';
+	
+    var prefixes = ['webkit','moz','ms'];
+    for (var i = 0; i < prefixes.length; i++)
+	{
+        if ((prefixes[i] + 'Hidden') in document) 
+            return prefixes[i] + 'Hidden';
+    }
+
+    return null;
+}
+
+function isHidden()
+{
+    var propertyName = getHiddenPropertyName();
+    if (!propertyName) return false;
+  
+    return document[propertyName];
+}
+
+var IntermediateFrameId = "KlIntermediateFrame.{3CFCD6D1-EC3B-476C-9C27-D76C2F01EAF5}";
+
+function isInsideIntermediateFrame()
+{
+    return IntermediateFrameId == window.name;
+}
+
+function getNearestMeaningfulFrame()
+{
+    var result = window;
+
+    while (result.name == IntermediateFrameId)
+    {
+        if (result.parent == result)
+        {
+            return result;
+        }
+        result = result.parent;
+    }
+
+    return result;
+}
+
+function navigateToCupStub(url) {
+    if(isInsideIntermediateFrame())
+    {
+        window.location.replace(url);
+        return;
+    }
+    var frame = document.createElement('iframe');
+    frame.style.cssText = "position:fixed; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; border:none; margin:0; padding:0; z-index:9999";
+    frame.style.display = "none";
+    frame.setAttribute("name", IntermediateFrameId);
+    document.body.appendChild(frame);
+    document.body.style.overflow = "hidden";
+
+    var onFrameLoad = function (event) {
+        var frameDocument = event.target.contentWindow.document;
+        document.title = frameDocument.title;
+
+        try {
+            Object.defineProperty(frameDocument, "title", {
+                get: function() { return document.title; },
+                set: function(newValue) { document.title = newValue; },
+                enumerable: true,
+                configurable: false
+            });
+        } catch (e) {}
+        
+        frame.style.display = "block";
+    }
+
+    if (frame.addEventListener) {
+        frame.addEventListener('load', onFrameLoad, false);
+    } else if (frame.attachEvent) {
+        frame.attachEvent('onload', onFrameLoad);
+    } else {
+        frame.onload = onFrameLoad;
+    }
+
+    frame.src = url;
+}
+
+function navigateFromStub(url) {
+    getNearestMeaningfulFrame().location.replace(url);
+}
+
+var isCancelling = false;
+
+function cancelCurrentOperation()
+{
+    isCancelling = true;
+}
+
+var onCancelImpossible = null;
+
+function setOnCancelImpossible(callback)
+{
+    onCancelImpossible = callback;
+}
+
+var customCommandProcessor = null;
+
+function setCustomCommandProcessor(callback)
+{
+    customCommandProcessor = callback;
+}
+
+var customScriptDataForService = null;
+function setCustomScriptData(data)
+{
+    customScriptDataForService = data;
+}
+
+function doNavigate(useFrame, url)
+{
+    if(onCancelImpossible)
+    {
+        onCancelImpossible();
+    }
+    if(useFrame)
+    {
+   	    navigateToCupStub(url);
+    }
+    else
+    {
+        document.title = "";
+        navigateFromStub(url);
+    }
+}
+
+function tryGetJson(responseText)
+{
+    try
+    {
+        return JSON.parse(responseText);
+    }
+    catch(e)
+    {
+        if(console)
+        {
+            console.log(e.message);
+        }
+        return undefined;
+    }
+}
+
+function onCupFiltersFailed()
+{
+    if(onCancelImpossible)
+    {
+        onCancelImpossible();
+    }
+    location.reload();
+}
+
+function getSize(wnd)
+{
+    return {
+        width: wnd.innerWidth || wnd.document.documentElement.clientWidth || wnd.document.body.clientWidth,
+        height: wnd.innerHeight || wnd.document.documentElement.clientHeight || wnd.document.body.clientHeight
+    };
+}
+
+function isHiddenFrame(wnd)
+{
+    var size = getSize(wnd);
+    if(size.width < 270 || size.height < 150)
+    {
+        return true;
+    }
+    return false;
+}
+
+function isExecutingFromHiddenFrame()
+{
+    try
+    {
+        var current = window;
+        if(current == top)
+        {
+            return false;
+        }
+        do
+        {
+            if(isHiddenFrame(current))
+            {
+                return true;
+            }
+            current = current.parent;
+        }
+        while(top != current);
+        return false;
+    }
+    catch(exception)
+    {
+        return false;
+    }
+}
+
+function checkCompletionStatus()
+{
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx?4BE6CA09-B438-46AA-BC33-6FDAF3A9FADF_saas_cup_B2E7DBCB_5BD4_4A23_86A9_329C9410AC8F_c0o=", true);
+    xhr.setRequestHeader("X-Url-Fragment", getNearestMeaningfulFrame().location.hash);
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    if(isCancelling) 
+    {
+        xhr.setRequestHeader("X-Request-ID", "CancelOperation");
+    }
+    if(customScriptDataForService)
+    {
+        xhr.setRequestHeader("X-Custom-Script-Data", customScriptDataForService);
+    }
+    if(isExecutingFromHiddenFrame())
+    {
+        xhr.setRequestHeader("X-Hidden-Frame-Detect", "1");
+    }
+    xhr.onreadystatechange = function()
+    {
+        if (xhr.readyState != 4) return;
+
+        if(xhr.status == 404)
+        {
+            onCupFiltersFailed();
+        }
+        else if (xhr.status != 200 && xhr.status != 499)
+        {
+            setTimeout(checkCompletionStatus, 1000);
+        }
+        else
+        {
+            var response = tryGetJson(xhr.responseText);
+            if(response)
+            {
+                if(response.finished)
+                {
+                    doNavigate(response.useFrameRedirect, response.cup);
+                }
+                else
+                {
+                    if(customCommandProcessor && response.customCommandData)
+                    {
+                        customCommandProcessor(response.customCommandData);
+                    }
+                    setTimeout(checkCompletionStatus, 1000);
+                }
+            }
+            else
+            {
+                onCupFiltersFailed();
+            }
+        }
+    }
+    xhr.send();
+}
+
+function performCheck()
+{
+    if(!isHidden())
+    {
+        checkCompletionStatus();
+	}
+	else
+	{
+		var propertyName = getHiddenPropertyName();
+		var eventName = propertyName.replace(/[H|h]idden/,"") + "visibilitychange";
+		document.addEventListener(eventName, performCheck);
+	}
+}
+
+var stepsCount = 0;
+var requiredStepsCount = 8;
+
+function enqueueIntermediateStubCheck(skipPageContextChecks)
+{
+    if(skipPageContextChecks)
+    {
+        checkCompletionStatus();
+    }
+    else
+    {
+        if (stepsCount == requiredStepsCount)
+        {
+            performCheck();
+        }
+        else
+        {
+            stepsCount++;
+            setTimeout(enqueueIntermediateStubCheck, 17);
+        }
+    }
+}</script>
+		<script>
+			var skipPageContextChecks = true;
+			enqueueIntermediateStubCheck(skipPageContextChecks);
+		</script>
+	
+
+
+<iframe name="KlIntermediateFrame.{3CFCD6D1-EC3B-476C-9C27-D76C2F01EAF5}" src="https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx?4BE6CA09-B438-46AA-BC33-6FDAF3A9FADF_saas_cup_B2E7DBCB_5BD4_4A23_86A9_329C9410AC8F_c00=" style="position: fixed; inset: 0px; width: 100%; height: 100%; border: none; margin: 0px; padding: 0px; z-index: 9999; display: block;"></iframe></body></html>

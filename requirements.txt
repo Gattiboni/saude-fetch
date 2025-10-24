@@ -1,0 +1,13 @@
+# Dependências principais para o mapeador de DOM saude-fetch (versão Selenium)
+# Compatível com Python 3.12 em Windows
+
+selenium==4.25.0
+webdriver-manager==4.0.2
+pandas==2.2.3
+beautifulsoup4==4.12.3
+requests==2.32.3
+python-dotenv==1.0.1
+colorama==0.4.6
+
+# Opcional (utilitários adicionais)
+lxml==4.9.3

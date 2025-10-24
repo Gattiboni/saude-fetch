@@ -1,0 +1,374 @@
+{
+  "site": "unimed",
+  "url": "https://www.unimed.coop.br/site/guia-medico#/",
+  "captured_at": "2025-10-24T05:39:03.287330+00:00",
+  "dynamic_snapshot_path": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings\\unimed_dynamic.html",
+  "elements": {
+    "inputs": [
+      {
+        "type": "hidden",
+        "id": "cd_unimed",
+        "name": "",
+        "class": "",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "hidden",
+        "id": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_formDate",
+        "name": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_formDate",
+        "class": "field form-control",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "hidden",
+        "id": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_emptySearchEnabled",
+        "name": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_emptySearchEnabled",
+        "class": "field search-bar-empty-search-input form-control",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "text",
+        "id": "dkrk___q",
+        "name": "q",
+        "class": "form-control input-group-inset input-group-inset-after search-bar-keywords-input",
+        "placeholder": "Faça sua busca aqui",
+        "aria_label": "Buscar"
+      },
+      {
+        "type": "hidden",
+        "id": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_scope",
+        "name": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_scope",
+        "class": "field form-control",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "hidden",
+        "id": "cd_unimed",
+        "name": "",
+        "class": "",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "hidden",
+        "id": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_formDate",
+        "name": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_formDate",
+        "class": "field form-control",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "hidden",
+        "id": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_emptySearchEnabled",
+        "name": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_emptySearchEnabled",
+        "class": "field search-bar-empty-search-input form-control",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "text",
+        "id": "wfkm___q",
+        "name": "q",
+        "class": "form-control input-group-inset input-group-inset-after search-bar-keywords-input",
+        "placeholder": "Faça sua busca aqui",
+        "aria_label": "Buscar"
+      },
+      {
+        "type": "hidden",
+        "id": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_scope",
+        "name": "_com_liferay_portal_search_web_search_bar_portlet_SearchBarPortlet_INSTANCE_templateSearch_scope",
+        "class": "field form-control",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "text",
+        "id": "react-select-2-input",
+        "name": "",
+        "class": "",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "text",
+        "id": "client-input",
+        "name": "",
+        "class": "QuickSearchForm--client-input Input--input",
+        "placeholder": "000.000.000-00",
+        "aria_label": null
+      },
+      {
+        "type": "checkbox",
+        "id": "Switch-1",
+        "name": "",
+        "class": "Switch--input Switch--secondary",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "checkbox",
+        "id": "Switch-2",
+        "name": "",
+        "class": "Switch--input Switch--secondary",
+        "placeholder": "",
+        "aria_label": null
+      },
+      {
+        "type": "checkbox",
+        "id": "Switch-3",
+        "name": "",
+        "class": "Switch--input Switch--secondary",
+        "placeholder": "",
+        "aria_label": null
+      }
+    ],
+    "buttons": [
+      {
+        "text": "",
+        "id": "",
+        "class": "close",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "",
+        "class": "btn btn-monospaced btn-unstyled",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "",
+        "class": "navbar-toggler button--mobile p-0",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "",
+        "class": "btn btn-monospaced btn-unstyled",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "acesso-rapido-mobile-click",
+        "class": "pl-0 nav-link menu-principal__nivel-2--bold menu-principal--cor-preta d-md-flex d-sm-flex d-xs-flex justify-content-md-between justify-content-sm-between justify-content-xs-between",
+        "role": "button"
+      },
+      {
+        "text": "",
+        "id": "collapseAUnimed-0-click",
+        "class": "pl-0 nav-link menu-principal__nivel-2 d-md-flex d-sm-flex d-xs-flex float-right",
+        "role": "button"
+      },
+      {
+        "text": "",
+        "id": "collapseNotícias-3-click",
+        "class": "pl-0 nav-link menu-principal__nivel-2 d-md-flex d-sm-flex d-xs-flex float-right",
+        "role": "button"
+      },
+      {
+        "text": "",
+        "id": "navbarDropdown-0",
+        "class": "btn btn-link float-right py-0 px-2",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "navbarDropdown-3",
+        "class": "btn btn-link float-right py-0 px-2",
+        "role": null
+      },
+      {
+        "text": "ACESSO RÁPIDO",
+        "id": "acesso-rapido-click",
+        "class": "nav-link menu-principal__nivel-2--bold menu-principal--cor-preta p-0",
+        "role": "button"
+      },
+      {
+        "text": "",
+        "id": "navbarDropdown-0",
+        "class": "btn btn-link float-right py-0 px-2",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "navbarDropdown-3",
+        "class": "btn btn-link float-right py-0 px-2",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "acesso-rapido-click-retratil",
+        "class": "nav-link menu-principal__nivel-2--bold menu-principal--cor-preta p-0 area-atalho-menu",
+        "role": "button"
+      },
+      {
+        "text": "Pesquisar",
+        "id": "",
+        "class": "Button Button--block Button--featured Button--secondary",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "",
+        "class": "",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "",
+        "class": "sc-bRKDuR enZBnI ht-translator-exception",
+        "role": null
+      },
+      {
+        "text": "",
+        "id": "",
+        "class": "sc-bRKDuR jrwXHU ht-translator-exception",
+        "role": null
+      }
+    ],
+    "labels": [
+      {
+        "text": "Canais de atendimento\nFaça sua busca aqui\nLogin\nA Unimed\nPlanos\nViver Bem\nNotícias\nENCONTRE UM MÉDICO\nACESSO RÁPIDO\nGuia Médico\nGuia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca r"
+      },
+      {
+        "text": "Canais de atendimento\nFaça sua busca aqui\nLogin\nA Unimed\nPlanos\nViver Bem\nNotícias\nENCONTRE UM MÉDICO\nACESSO RÁPIDO"
+      },
+      {
+        "text": "Canais de atendimento\nFaça sua busca aqui\nLogin\nA Unimed\nPlanos\nViver Bem\nNotícias\nENCONTRE UM MÉDICO\nACESSO RÁPIDO"
+      },
+      {
+        "text": "Canais de atendimento\nFaça sua busca aqui\nLogin\nA Unimed\nPlanos\nViver Bem\nNotícias\nENCONTRE UM MÉDICO\nACESSO RÁPIDO"
+      },
+      {
+        "text": "A Unimed\nPlanos\nViver Bem\nNotícias\nENCONTRE UM MÉDICO\nACESSO RÁPIDO"
+      },
+      {
+        "text": "A Unimed"
+      },
+      {
+        "text": "Planos"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Guia Médico\nInforme aqui qual o tipo de atendimento você procura\nBusca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emer"
+      },
+      {
+        "text": "Busca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora\nPesquisar"
+      },
+      {
+        "text": "Busca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora\nPesquisar"
+      },
+      {
+        "text": "Busca rápida\nBusca detalhada\nDigite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora\nPesquisar"
+      },
+      {
+        "text": "Digite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora\nPesquisar"
+      },
+      {
+        "text": "Digite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora\nPesquisar"
+      },
+      {
+        "text": "Digite aqui o serviço que você procura\nÉ cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora\nPesquisar"
+      },
+      {
+        "text": "É cliente? Digite seu CPF ou carteirinha\nTelessaúde\nUrgência e emergência\nMudança da rede prestadora"
+      },
+      {
+        "text": "É cliente? Digite seu CPF ou carteirinha"
+      },
+      {
+        "text": "É cliente? Digite seu CPF ou carteirinha"
+      },
+      {
+        "text": "É cliente? Digite seu CPF ou carteirinha"
+      },
+      {
+        "text": "É cliente? Digite seu CPF ou carteirinha"
+      },
+      {
+        "text": "A Unimed\nSistema Unimed\nUnimed do Brasil\nCooperativismo\nTrabalhe conosco\nPolítica de Privacidade\nTermo de uso\nRol ANS\nServiços\n2ª via de Boleto\nImposto de Renda\nPlanos\nFormulário de Patrocínios\nSusten"
+      },
+      {
+        "text": "A Unimed\nSistema Unimed\nUnimed do Brasil\nCooperativismo\nTrabalhe conosco\nPolítica de Privacidade\nTermo de uso\nRol ANS\nServiços\n2ª via de Boleto\nImposto de Renda\nPlanos\nFormulário de Patrocínios\nSusten"
+      },
+      {
+        "text": "A Unimed\nSistema Unimed\nUnimed do Brasil\nCooperativismo\nTrabalhe conosco\nPolítica de Privacidade\nTermo de uso\nRol ANS"
+      },
+      {
+        "text": "A Unimed"
+      },
+      {
+        "text": "A Unimed"
+      },
+      {
+        "text": "Sistema Unimed\nUnimed do Brasil\nCooperativismo\nTrabalhe conosco\nPolítica de Privacidade\nTermo de uso\nRol ANS"
+      },
+      {
+        "text": "Sistema Unimed"
+      },
+      {
+        "text": "Unimed do Brasil"
+      },
+      {
+        "text": "Serviços\n2ª via de Boleto\nImposto de Renda\nPlanos\nFormulário de Patrocínios"
+      },
+      {
+        "text": "2ª via de Boleto\nImposto de Renda\nPlanos\nFormulário de Patrocínios"
+      },
+      {
+        "text": "Planos"
+      },
+      {
+        "text": "Notícias\nReleases\nNotícias Sistema Unimed\nRevista Unimed BR\nImprensa"
+      },
+      {
+        "text": "Releases\nNotícias Sistema Unimed\nRevista Unimed BR\nImprensa"
+      },
+      {
+        "text": "Notícias Sistema Unimed"
+      },
+      {
+        "text": "Revista Unimed BR"
+      },
+      {
+        "text": "Siga nossas redes sociais:\nBaixe nosso aplicativo\nCopyright 2001 - 2025 Unimed do Brasil - Todos os direitos reservados"
+      },
+      {
+        "text": "Copyright 2001 - 2025 Unimed do Brasil - Todos os direitos reservados"
+      },
+      {
+        "text": "Copyright 2001 - 2025 Unimed do Brasil - Todos os direitos reservados"
+      }
+    ]
+  }
+}
