@@ -1,0 +1,68 @@
+{
+  "_meta": {
+    "mappings_dir": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings",
+    "note": "Arquivo gerado a partir de artefatos finais em docs/mappings. Não embute DOM para evitar arquivos gigantes; referencia apenas o caminho e o tamanho."
+  },
+  "providers": {
+    "unimed": {
+      "source_file": "unimed.json",
+      "status": "confirmed",
+      "success_criteria": "Retorna dados de plano e cooperativa",
+      "failure_criteria": "Mensagem de CPF inválido",
+      "dom_snapshot": {
+        "format": "html",
+        "size_bytes": 352111,
+        "path": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings\\unimed.json"
+      },
+      "notes": "Mapeamento manual confirmado."
+    },
+    "unimed_seguros": {
+      "source_file": "unimed seguros.json",
+      "status": "confirmed",
+      "success_criteria": "Exibe informações do plano diretamente",
+      "failure_criteria": "Modal de erro / CPF inválido",
+      "dom_snapshot": {
+        "format": "html",
+        "size_bytes": 72980,
+        "path": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings\\unimed seguros.json"
+      },
+      "notes": "Mapeamento manual confirmado."
+    },
+    "amil": {
+      "source_file": "amil.json",
+      "status": "confirmed",
+      "success_criteria": "Exibe nome do plano (ex.: OURO)",
+      "failure_criteria": "Modal \"não encontrado\"",
+      "dom_snapshot": {
+        "format": "html",
+        "size_bytes": 39682,
+        "path": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings\\amil.json"
+      },
+      "notes": "Mapeamento manual confirmado."
+    },
+    "bradesco": {
+      "source_file": "bradesco.json",
+      "status": "confirmed",
+      "success_criteria": "Modal \"Selecione o beneficiário\"",
+      "failure_criteria": "Modal \"Beneficiário não encontrado\"",
+      "dom_snapshot": {
+        "format": "html",
+        "size_bytes": 298451,
+        "path": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings\\bradesco.json"
+      },
+      "notes": "Mapeamento manual confirmado."
+    },
+    "sulamerica": {
+      "source_file": "sulamerica.json",
+      "status": "placeholder",
+      "success_criteria": "Exige login (CNPJ)",
+      "failure_criteria": "Acesso negado sem autenticação",
+      "dom_snapshot": {
+        "format": "text",
+        "size_bytes": 30,
+        "path": "D:\\Backup C 256\\Desktop\\Gattiboni Enterprises\\Lucas Farinazzo\\saude-fetch\\docs\\mappings\\sulamerica.json"
+      },
+      "notes": "Placeholder aguardando credenciais e teste de login."
+    }
+  }
+}

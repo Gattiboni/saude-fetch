@@ -1,5 +1,17 @@
 # DECISION_LOG — saude-fetch
 
+## 2025-10-26 — Consolidação de fluxos e automação via Neo (Emergent)
+**Decisão:** Centralizar a execução de pipelines (CPF e CNPJ) sob o Neo (emergent.sh), que passa a ser responsável por orquestração, automação e deploy.
+
+**Motivos:**
+- Unificar execução e manutenção.
+- Garantir consistência entre ambientes locais e remotos.
+- Reduzir intervenção manual.
+
+**Impactos:**
+- Neo executa os pipelines CPF (público) e CNPJ (autenticado) com base nos JSONs de mapeamento.
+- Documentação, logs e snapshots mantidos no padrão incremental.
+
 ## 2025-10-24 — Adaptação para qualificação por tipo de consulta
 **Decisão:** Separar o fluxo de qualificação entre CPFs e CNPJs para melhor compatibilidade com interfaces que exigem autenticação (ex.: SulAmérica).
 **Motivos:**

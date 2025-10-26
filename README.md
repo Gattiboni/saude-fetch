@@ -1,4 +1,4 @@
-# Projeto **saude-fetch** — Guia e Folha de Rosto (ClickUp)
+# Projeto **saude-fetch** — Guia e Folha de Rosto (Revisado)
 
 **Repositório:** [https://github.com/Gattiboni/saude-fetch](https://github.com/Gattiboni/saude-fetch)
 
@@ -30,29 +30,45 @@ O sistema foi desenhado para ser modular, seguro e escalável — respeitando bo
 
 1. **Preparação e Ambiente** – Criação do repositório, configuração local e documentação base.
 2. **Núcleo e Estrutura** – Definição da arquitetura e implementação de módulos fundamentais.
-3. **Mapeador de DOM (Manual)** – Script Python para mapeamento estrutural dos sites.
-4. **Desenvolvimento via Neo (Emergent)** – Geração automatizada dos conectores, pipeline e interface web.
+3. **Mapeamento e Consolidação** – Exportação manual dos HTMLs e geração de JSONs de referência. Consolidação dos mapeamentos para definir o comportamento binário das operadoras (CPF válido / inválido).
+4. **Desenvolvimento via Neo (Emergent)** – Geração automatizada dos conectores, pipelines e interface web pelo Neo (emergent.sh).
 5. **Testes e Validação** – Execução de testes automáticos, avaliação de performance e ajustes.
-6. **Entrega Final** – Documentação, versionamento e publicação no Vercel.
+6. **Entrega Final** – Documentação, versionamento e publicação.
 
 ---
 
-## Mapeador de DOM
+## Mapeamento de DOM e Regras de Consulta
 
-Script em Python executado localmente para capturar a estrutura HTML (estática e dinâmica) dos sites das operadoras. Gera arquivos JSON com mapeamento de elementos essenciais: inputs, botões, labels e identificadores semânticos. Esses arquivos servem como referência para o desenvolvimento automatizado realizado pelo Neo.
+O processo de mapeamento é manual e serve como base para o comportamento esperado de cada operadora. As consultas seguem um padrão binário:
+
+| Operadora          | Critério de sucesso                    | Critério de falha                   |
+| ------------------ | -------------------------------------- | ----------------------------------- |
+| **Unimed**         | Retorna dados de plano e cooperativa   | Mensagem de CPF inválido            |
+| **Amil**           | Exibe nome do plano (ex.: "OURO")      | Modal “não encontrado”              |
+| **Bradesco**       | Modal “Selecione o beneficiário”       | Modal “Beneficiário não encontrado” |
+| **Seguros Unimed** | Exibe informações do plano diretamente | Modal de erro / CPF inválido        |
+| **SulAmérica**     | Exige login (CNPJ)                     | Acesso negado sem autenticação      |
+
+Esses comportamentos são consolidados em `/docs/mappings/mappings_reference.json`, usado como blueprint para o Neo.
 
 ---
 
 ## Desenvolvimento via Neo (Emergent)
 
-Todas as implementações de conectores, pipelines e interface serão geradas via **Neo (Emergent)**, conforme instruções curtas e direcionadas. O foco é garantir conformidade com a arquitetura definida, deixando espaço para otimização e criatividade do modelo.
+Todas as implementações de conectores, pipelines e interface são geradas e executadas pelo **Neo (emergent.sh)**, que assume a camada de automação completa.
 
-**Regras básicas para prompts do Neo:**
+**Funções do Neo:**
 
-- Respeitar interfaces e módulos definidos.
-- Implementar apenas o que for solicitado na sprint.
-- Executar apenas testes automáticos (pytest).
-- Retornar sempre com explicação objetiva da implementação.
+* Geração automática dos scripts `pipeline_cpf.py` e `pipeline_cnpj.py`.
+* Criação de conectores baseados nos JSONs de mapeamento validados.
+* Execução orquestrada das consultas em lote, com logs e exportação de resultados.
+* Deploy da aplicação e integração com camada FastAPI + frontend.
+
+**Diretrizes para prompts do Neo:**
+
+* Seguir os mapeamentos e regras binárias confirmadas.
+* Respeitar a estrutura modular e a documentação existente.
+* Gerar resultados consistentes com os artefatos em `/docs/mappings/`.
 
 ---
 
@@ -60,32 +76,31 @@ Todas as implementações de conectores, pipelines e interface serão geradas vi
 
 Todos os arquivos de documentação estão em `/docs/`:
 
-- `README.md` — guia principal do projeto.
-- `Architecture.md` — visão técnica e diagramas.
-- `DecisionLog.md` — decisões de arquitetura e ajustes.
-- `Changelog.md` — histórico de alterações e entregas.
+* `README.md` — guia principal do projeto.
+* `Architecture.md` — visão técnica e diagramas.
+* `DecisionLog.md` — decisões de arquitetura e ajustes.
+* `Changelog.md` — histórico de alterações e entregas.
 
 ---
 
 ## Cronograma
 
-- **Início:** 23/10/2025
-- **Conclusão prevista:** 27/10/2025
-- O trabalho será executado de forma contínua (incluso final de semana) para entrega até segunda-feira.
+* **Início:** 23/10/2025
+* **Conclusão prevista:** 27/10/2025
+* O trabalho será executado de forma contínua (inclui final de semana) até a entrega final.
 
 ---
 
 ## Responsável
 
-**Alan Gattiboni** — Especialista em Automação e Integração.\
+**Alan Gattiboni** — Especialista em Automação e Integração.
 Coordenação técnica, execução de scripts locais e orquestração via Neo.
 
 ---
 
 ## Status Atual
 
-- Estrutura do projeto definida.
-- Cronograma aprovado e distribuído.
-- Mapeador de DOM em desenvolvimento.
-- Próximas etapas: execução das sprints via Neo e consolidação da entrega final.
-
+* Estrutura do projeto definida.
+* Mapeamentos de DOM concluídos e validados.
+* Consolidação de dados em andamento.
+* Próximas etapas: geração dos pipelines via Neo e integração completa.
