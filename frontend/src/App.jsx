@@ -117,12 +117,22 @@ export default function App() {
     }
   }
 
+  if (!authed) return <Login onSuccess={()=> setAuthed(true)} />
+
   return (
     <div className="container space-y-6" data-testid="saude-fetch-app">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">saude-fetch</h1>
-        <p className="label">MVP mínimo para upload de planilhas, processamento local e download do resultado.</p>
+      <header className="space-y-1 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">saude-fetch</h1>
+          <p className="label">MVP mínimo para upload de planilhas, processamento local e download do resultado.</p>
+        </div>
+        <button data-testid="logout-button" className="btn" onClick={()=>{localStorage.removeItem('token'); setAuthed(false)}}>Sair</button>
       </header>
+
+      <nav className="card flex gap-3" data-testid="tabs">
+        <button className="btn" data-testid="tab-cpf">Consulta CPF</button>
+        <button className="btn opacity-50 cursor-not-allowed" title="Em breve" data-testid="tab-cnpj">Consulta CNPJ (em breve)</button>
+      </nav>
 
       <section className="card space-y-4" data-testid="upload-card">
         <form className="space-y-4" onSubmit={createJob}>
