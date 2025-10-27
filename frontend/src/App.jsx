@@ -192,14 +192,6 @@ export default function App() {
               setFile(f)
             }} />
           </div>
-          <div className="space-y-1">
-            <label className="label" htmlFor="type">Tipo</label>
-            <select id="type" data-testid="upload-select-type" className="input w-full" value={type} onChange={(e)=> setType(e.target.value)}>
-              <option value="auto">Auto</option>
-              <option value="cpf">CPF</option>
-              <option value="cnpj">CNPJ</option>
-            </select>
-          </div>
           <div className="flex gap-2">
             <button data-testid="upload-submit-button" className="btn" disabled={uploadingDisabled}>{creating ? 'Processando...' : 'Enviar e processar'}</button>
           </div>
