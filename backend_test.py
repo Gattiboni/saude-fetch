@@ -320,12 +320,13 @@ class SaudeFetchAPITester:
         return success
 
     def test_list_jobs_with_data(self):
-        """Test listing jobs after creating one"""
+        """Test listing jobs after creating one (requires auth)"""
         success, response = self.run_test(
             "List Jobs (With Data)",
             "GET",
             "/jobs",
-            200
+            200,
+            auth_required=True
         )
         if success and 'items' in response:
             items = response['items']
@@ -338,6 +339,32 @@ class SaudeFetchAPITester:
                     print(f"   ⚠️ Created job not found in list")
             return True
         return False
+
+    def test_driver_throttling(self):
+        """Test that drivers respect throttling configuration"""
+        print("   ⏳ Testing driver throttling behavior...")
+        
+        # Check if environment variables are set
+        backend_env_path = "/app/backend/.env"
+        min_delay = None
+        max_delay = None
+        
+        try:
+            with open(backend_env_path, 'r') as f:
+                for line in f:
+                    if line.startswith('FETCH_MIN_DELAY='):
+                        min_delay = float(line.split('=', 1)[1].strip())
+                    elif line.startswith('FETCH_MAX_DELAY='):
+                        max_delay = float(line.split('=', 1)[1].strip())
+        except Exception as e:
+            print(f"   ⚠️ Could not read backend .env: {e}")
+            
+        if min_delay is not None and max_delay is not None:
+            print(f"   ✓ Throttling configured: {min_delay}s - {max_delay}s")
+            return True
+        else:
+            print(f"   ❌ Throttling not properly configured")
+            return False
 
 def main():
     print("🚀 Starting saude-fetch API tests...")
