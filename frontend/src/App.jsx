@@ -28,11 +28,13 @@ function StatusBar({ jobs }){
 
 }
 
-function useJobsPoll() {
+function useJobsPoll(enabled = true) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => {
+    if (!enabled) return
+    
     let timer
     const tick = async () => {
       try {
@@ -49,7 +51,7 @@ function useJobsPoll() {
     }
     tick()
     return () => timer && clearTimeout(timer)
-  }, [])
+  }, [enabled])
   return { jobs, loading, error }
 }
 
