@@ -134,7 +134,7 @@ export default function App() {
                   <td>
                     <div className="flex gap-2">
                       <a data-testid={`download-csv-${j.id}`} className="btn" href={`${API_BASE}/jobs/${j.id}/results?format=csv`} target="_blank" rel="noreferrer">CSV</a>
-                      <a data-testid={`download-json-${j.id}`} className="btn" href={`${API_BASE}/api/jobs/${j.id}/results?format=json`} target="_blank" rel="noreferrer">JSON</a>
+                      <a data-testid={`download-json-${j.id}`} className="btn" href={`${API_BASE}/jobs/${j.id}/results?format=json`} target="_blank" rel="noreferrer">JSON</a>
                     </div>
                   </td>
                 </tr>
