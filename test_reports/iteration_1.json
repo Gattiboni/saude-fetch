@@ -40,7 +40,9 @@
     "✅ Background job processing completes successfully",
     "✅ Job listing shows created jobs",
     "✅ Frontend serves React application correctly",
-    "✅ Frontend title 'saude-fetch' displays correctly"
+    "✅ Frontend title 'saude-fetch' displays correctly",
+    "✅ All required data-testid attributes present in interactive elements",
+    "✅ Data-testid attributes found: saude-fetch-app, upload-card, upload-input-file, upload-select-type, upload-submit-button, jobs-list-card, jobs-table, jobs-row-{id}, download-csv-{id}, download-json-{id}, footer"
   ],
 
   "test_report_links": ["/app/backend_test.py"],
