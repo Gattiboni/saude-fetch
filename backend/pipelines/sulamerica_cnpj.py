@@ -5,9 +5,12 @@ from datetime import datetime
 from typing import List, Dict, Any
 
 from playwright.async_api import async_playwright, TimeoutError as PWTimeoutError
+import subprocess
 
 LOG_PATH = "/app/data/logs/sulamerica_cnpj.log"
 ERROR_DIR = "/app/data/errors/sulamerica"
+EXPORT_DIR = "/app/data/exports"
+SUL_XLSX = os.path.join(EXPORT_DIR, "sulamerica_cnpj.xlsx")
 
 SUL_CPF = os.environ.get("SUL_CPF", "")
 SUL_EMAIL = os.environ.get("SUL_EMAIL", "")
