@@ -171,7 +171,9 @@ export default function App() {
 
       <nav className="card flex gap-3" data-testid="tabs">
         <button className="btn" data-testid="tab-cpf">Consulta CPF</button>
-        <button className="btn opacity-50 cursor-not-allowed" title="Em breve" data-testid="tab-cnpj">Consulta CNPJ (em breve)</button>
+        <button className="btn" data-testid="tab-cnpj" onClick={()=>alert('Fluxo SulAmérica CNPJ disponível na seção abaixo')}>
+          Consulta CNPJ (SulAmérica)
+        </button>
       </nav>
 
       <section className="card space-y-4" data-testid="upload-card">
