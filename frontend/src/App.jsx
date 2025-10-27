@@ -99,34 +99,40 @@ function CnpjForm(){
   const [error, setError] = useState('')
   const [summary, setSummary] = useState(null)
   const [items, setItems] = useState([])
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
 
   const submit = async (e)=>{
     e.preventDefault()
     setError('')
     setSummary(null)
     setItems([])
+    setProgress({ current: 0, total: 0 })
     if (!file) { setError('Selecione um arquivo CSV ou XLSX.'); return }
     try{
       setLoading(true)
-      // ler arquivo no browser e extrair CNPJs simples (primeira coluna)
       const text = await file.text()
       const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
-      const header = lines[0].toLowerCase()
       let cnpjs = []
       for (let i=1;i<lines.length;i++){
         const v = lines[i].replace(/\D/g,'')
         if (v.length===14) cnpjs.push(v)
       }
       if (!cnpjs.length) { setError('Nenhum CNPJ válido encontrado.'); return }
+      setProgress({ current: 0, total: cnpjs.length })
+
+      // Chama backend
       const res = await apiFetch('/api/fetch/cnpj', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cnpjs }) })
       setSummary({ total: res.total, ativos: res.ativos, inativos: res.inativos })
       setItems(res.items || [])
+      setProgress({ current: res.items?.length || res.total || 0, total: res.total || cnpjs.length })
     }catch(err){ setError(String(err.message||err)) }
     finally{ setLoading(false) }
   }
 
+  const pct = progress.total ? Math.round((progress.current/progress.total)*100) : 0
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <form onSubmit={submit} className="space-y-3">
         <div>
           <label className="label">Arquivo (.csv recomendado)</label>
@@ -135,8 +141,25 @@ function CnpjForm(){
         {error && <div className="text-red-300" data-testid="cnpj-error">{error}</div>}
         <button className="btn" data-testid="cnpj-submit" disabled={loading || !file}>{loading?'Processando…':'Enviar e processar'}</button>
       </form>
+      {progress.total>0 && (
+        <div className="space-y-1">
+          <div className="label" data-testid="cnpj-progress-label">Processando {progress.current} de {progress.total}…</div>
+          <div className="w-full h-2 bg-gray-800 rounded">
+            <div className="h-2 bg-blue-500 rounded" style={{ width: `${pct}%`, transition: 'width .3s' }} />
+          </div>
+        </div>
+      )}
       {summary && (
-        <div className="label" data-testid="cnpj-summary">Total: {summary.total} • Ativos: {summary.ativos} • Inativos: {summary.inativos}</div>
+        <div className="label flex items-center gap-3" data-testid="cnpj-summary">Total: {summary.total} • Ativos: {summary.ativos} • Inativos: {summary.inativos}
+          <button className="btn" data-testid="cnpj-download-xlsx" onClick={async()=>{
+            try{
+              const res = await apiFetch('/api/fetch/cnpj/export')
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a'); a.href = url; a.download = 'sulamerica_cnpj.xlsx'; a.click(); URL.revokeObjectURL(url)
+            }catch(err){ alert('Falha ao baixar XLSX: ' + (err?.message||err)) }
+          }}>Baixar XLSX</button>
+        </div>
       )}
       {!!items.length && (
         <div className="overflow-auto">
