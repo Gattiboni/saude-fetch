@@ -14,6 +14,32 @@ SUL_XLSX = os.path.join(EXPORT_DIR, "sulamerica_cnpj.xlsx")
 
 SUL_CPF = os.environ.get("SUL_CPF", "")
 SUL_EMAIL = os.environ.get("SUL_EMAIL", "")
+def _check_credentials():
+    missing = []
+    if not SUL_CPF: missing.append('SUL_CPF')
+    if not SUL_EMAIL: missing.append('SUL_EMAIL')
+    if not SUL_PASS: missing.append('SUL_PASS')
+    if not SUL_CORRETORA: missing.append('SUL_CORRETORA')
+    if missing:
+        raise RuntimeError(f"Faltam credenciais SulAmérica no .env: {', '.join(missing)}")
+
+async def _ensure_playwright():
+    try:
+        # Try launching a browser quickly
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            await browser.close()
+            return
+    except Exception:
+        pass
+    # Install chromium
+    try:
+        subprocess.run(["playwright", "install", "chromium"], check=True)
+        _log("Playwright chromium instalado automaticamente")
+    except Exception as e:
+        _log(f"Falha ao instalar Playwright chromium: {e}")
+        raise RuntimeError("Ambiente Playwright incompleto. Execute 'playwright install chromium'.")
+
 SUL_PASS = os.environ.get("SUL_PASS", "")
 SUL_CORRETORA = os.environ.get("SUL_CORRETORA", "")
 
