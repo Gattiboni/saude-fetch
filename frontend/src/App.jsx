@@ -107,7 +107,7 @@ export default function App() {
       const fd = new FormData()
       fd.append('file', file)
       fd.append('type', type)
-      const job = await apiFetch('/jobs', { method: 'POST', body: fd })
+      const job = await apiFetch('/api/jobs', { method: 'POST', body: fd })
       console.log('Job created', job)
     } catch (e) {
       alert('Erro ao criar job: ' + (e?.message || e))
