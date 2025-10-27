@@ -298,6 +298,10 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
         out_df = pd.DataFrame(results)
         out_df.to_csv(export_path, index=False)
 
+        # Export also a JSON copy for convenience
+        json_export_path = os.path.join(EXPORT_DIR, f"{job_id}.json")
+        out_df.fillna("").to_json(json_export_path, orient="records", force_ascii=False)
+
         await db.jobs.update_one({"_id": job_id}, {"$set": {
             "status": "completed",
             "total": total,
