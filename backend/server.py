@@ -205,6 +205,19 @@ async def get_results(job_id: str, format: str = "csv", user: str = Depends(requ
     else:
         raise HTTPException(status_code=400, detail="Invalid format. Use csv, json or xlsx.")
 
+class CnpjRequest(BaseModel):
+    cnpjs: List[str]
+
+@app.post(f"{API_PREFIX}/fetch/cnpj")
+async def fetch_cnpj(req: CnpjRequest, user: str = Depends(require_auth)):
+    from pipelines.sulamerica_cnpj import run_cnpj_pipeline
+    try:
+        data = await run_cnpj_pipeline(req.cnpjs)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get(f"{API_PREFIX}/jobs/{{job_id}}/log")
 async def get_job_log(job_id: str, user: str = Depends(require_auth)):
     if not os.path.exists(LAST_RUN_LOG):
