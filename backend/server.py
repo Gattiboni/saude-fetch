@@ -230,6 +230,9 @@ def to_rows(df: pd.DataFrame, forced_type: str) -> List[str]:
 
 
 async def process_job(job_id: str, path: str, forced_type: str = "auto"):
+        # Prepare drivers (no external interaction yet; mapping-driven)
+        drivers = [UnimedDriver(), AmilDriver(), BradescoDriver(), SegurosUnimedDriver(), SulamericaDriver()]
+
     db = await get_db()
     try:
         ext = os.path.splitext(path)[1].lower()
