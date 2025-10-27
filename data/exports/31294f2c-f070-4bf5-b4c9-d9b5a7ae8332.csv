@@ -1,0 +1,11 @@
+input,type,operator,status,plan,message,captured_at
+10476606799,cpf,unimed,pending,,mapeamento pendente,2025-10-27T02:45:40.119764
+10476606799,cpf,amil,pending,,mapeamento pendente,2025-10-27T02:45:40.827288
+10476606799,cpf,bradesco,pending,,mapeamento pendente,2025-10-27T02:45:41.751325
+10476606799,cpf,seguros_unimed,pending,,mapeamento pendente,2025-10-27T02:45:42.486639
+10476606799,cpf,sulamerica,pending,,login requerido (inativo nesta fase),2025-10-27T02:45:43.630285
+13083205740,cpf,unimed,pending,,mapeamento pendente,2025-10-27T02:45:44.299421
+13083205740,cpf,amil,pending,,mapeamento pendente,2025-10-27T02:45:45.408156
+13083205740,cpf,bradesco,pending,,mapeamento pendente,2025-10-27T02:45:46.506962
+13083205740,cpf,seguros_unimed,pending,,mapeamento pendente,2025-10-27T02:45:47.314162
+13083205740,cpf,sulamerica,pending,,login requerido (inativo nesta fase),2025-10-27T02:45:48.247537
