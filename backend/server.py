@@ -366,18 +366,13 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             # progress update every item
             await db.jobs.update_one({"_id": job_id}, {"$set": {"processed": processed, "total": total}})
 
-        # Export CSV of raw results (kept for audit/manual download)
-        export_name = f"{job_id}.csv"
-        export_path = os.path.join(EXPORT_DIR, export_name)
-        out_df = pd.DataFrame(results)
-        out_df.to_csv(export_path, index=False)
-
         # Build XLSX (CPF pipeline): CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS
+        out_df = pd.DataFrame(results)
         xlsx_path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
         build_xlsx_from_results(out_df, xlsx_path)
 
         # Write last run log (overwrite)
-        write_last_run_log(job_id, total, success, error, export_path, xlsx_path)
+        write_last_run_log(job_id, total, success, error, None, xlsx_path)
 
         await db.jobs.update_one({"_id": job_id}, {"$set": {
             "status": "completed",
@@ -386,7 +381,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             "error": error,
             "processed": processed,
             "completed_at": datetime.utcnow().isoformat(),
-            "export_path": export_path,
+            "export_path": None,
             "xlsx_path": xlsx_path,
         }})
     except Exception as e:
