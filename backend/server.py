@@ -212,7 +212,7 @@ async def get_job_log(job_id: str, user: str = Depends(require_auth)):
     return FileResponse(LAST_RUN_LOG, filename="last_run.log", media_type="text/plain")
 
 @app.post(f"{API_PREFIX}/jobs", response_model=JobOut)
-async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(...), type: str = Form("auto"), user: str = Depends(require_auth)):
+async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(...), user: str = Depends(require_auth)):
     # Basic validation for file type
     filename = file.filename or "upload"
     ext = os.path.splitext(filename)[1].lower()
@@ -226,7 +226,7 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
     await db.jobs.insert_one({
         "_id": job_id,
         "filename": filename,
-        "type": type,
+        "type": "cpf",
         "status": "pending",
         "total": 0,
         "success": 0,
