@@ -93,6 +93,74 @@ function useJobsPoll(enabled = true) {
   return { jobs, loading, error }
 }
 
+function CnpjForm(){
+  const [file, setFile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [summary, setSummary] = useState(null)
+  const [items, setItems] = useState([])
+
+  const submit = async (e)=>{
+    e.preventDefault()
+    setError('')
+    setSummary(null)
+    setItems([])
+    if (!file) { setError('Selecione um arquivo CSV ou XLSX.'); return }
+    try{
+      setLoading(true)
+      // ler arquivo no browser e extrair CNPJs simples (primeira coluna)
+      const text = await file.text()
+      const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
+      const header = lines[0].toLowerCase()
+      let cnpjs = []
+      for (let i=1;i<lines.length;i++){
+        const v = lines[i].replace(/\D/g,'')
+        if (v.length===14) cnpjs.push(v)
+      }
+      if (!cnpjs.length) { setError('Nenhum CNPJ válido encontrado.'); return }
+      const res = await apiFetch('/api/fetch/cnpj', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cnpjs }) })
+      setSummary({ total: res.total, ativos: res.ativos, inativos: res.inativos })
+      setItems(res.items || [])
+    }catch(err){ setError(String(err.message||err)) }
+    finally{ setLoading(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className="label">Arquivo (.csv recomendado)</label>
+          <input data-testid="cnpj-input-file" type="file" accept=".csv,.xlsx" className="input w-full" onChange={e=> setFile(e.target.files?.[0]||null)} />
+        </div>
+        {error && <div className="text-red-300" data-testid="cnpj-error">{error}</div>}
+        <button className="btn" data-testid="cnpj-submit" disabled={loading || !file}>{loading?'Processando…':'Enviar e processar'}</button>
+      </form>
+      {summary && (
+        <div className="label" data-testid="cnpj-summary">Total: {summary.total} • Ativos: {summary.ativos} • Inativos: {summary.inativos}</div>
+      )}
+      {!!items.length && (
+        <div className="overflow-auto">
+          <table className="table" data-testid="cnpj-results-table">
+            <thead>
+              <tr className="label"><th>CNPJ</th><th>Status</th><th>Mensagem</th><th>Quando</th></tr>
+            </thead>
+            <tbody>
+              {items.map((it,idx)=> (
+                <tr key={idx}>
+                  <td>{it.cnpj}</td>
+                  <td>{it.status}</td>
+                  <td>{it.mensagem_portal}</td>
+                  <td className="label">{it.timestamp}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Login({ onSuccess }){
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
