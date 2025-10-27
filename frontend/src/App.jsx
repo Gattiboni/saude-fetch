@@ -94,7 +94,7 @@ function Login({ onSuccess }){
 
 export default function App() {
   const [authed, setAuthed] = useState(!!localStorage.getItem('token'))
-  const { jobs, loading: listLoading, error: listError } = useJobsPoll()
+  const { jobs, loading: listLoading, error: listError } = useJobsPoll(authed)
   const [file, setFile] = useState(null)
   const [type, setType] = useState('auto')
   const [creating, setCreating] = useState(false)
