@@ -6,7 +6,10 @@ async function apiFetch(path, opts = {}) {
   const base = API_BASE
   if (!base) throw new Error('REACT_APP_BACKEND_URL não configurada no ambiente do frontend')
   const url = base + path
-  const res = await fetch(url, opts)
+  const headers = opts.headers || {}
+  const token = localStorage.getItem('token')
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(url, { ...opts, headers })
   if (!res.ok) {
     const text = await res.text()
     throw new Error(text || `Erro HTTP ${res.status}`)
