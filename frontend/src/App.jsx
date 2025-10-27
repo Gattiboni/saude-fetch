@@ -228,6 +228,7 @@ export default function App() {
             </thead>
             <tbody>
               {jobs.map(j => (
+                <>
                 <tr key={j.id} data-testid={`jobs-row-${j.id}`}>
                   <td className="truncate max-w-[180px]" title={j.id}>{j.id}</td>
                   <td>{j.filename}</td>
@@ -249,6 +250,22 @@ export default function App() {
                     </div>
                   </td>
                 </tr>
+                <tr>
+                  <td colSpan={10}>
+                    <div id={`summary-${j.id}`} className="hidden p-3 bg-gray-900 rounded" data-testid={`job-summary-content-${j.id}`}>
+                      <div className="flex gap-4 items-center">
+                        <div className="label">Resumo:</div>
+                        <div className="badge badge-processing">Consultados: {j.total}</div>
+                        <div className="badge badge-completed">Sucesso: {j.success}</div>
+                        <div className="badge badge-failed">Falhas: {j.error}</div>
+                      </div>
+                      <div className="mt-2 label flex items-center gap-2">
+                        <PendingBadge /> <span>Algumas operadoras podem mostrar “mapeamento pendente” até os JSONs serem fornecidos.</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                </>
               ))}
               {!jobs.length && (
                 <tr>
