@@ -35,6 +35,16 @@ async function downloadResult(jobId, format, filename){
   }catch(e){ alert('Falha ao baixar resultado: ' + (e?.message||e)) }
 }
 
+    
+    // build summaries map
+    setSummaries(prev => {
+      const map = { ...prev }
+      (data.items||[]).forEach(j => {
+        map[j.id] = { total: j.total, success: j.success, error: j.error }
+      })
+      return map
+    })
+
 function PendingBadge(){
   return <span className="badge badge-processing" title="mapeamento pendente" data-testid="pending-badge">pendente</span>
 }
