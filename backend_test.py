@@ -170,12 +170,13 @@ class SaudeFetchAPITester:
         return False
 
     def test_list_jobs_empty(self):
-        """Test listing jobs (should be empty initially)"""
+        """Test listing jobs (requires auth)"""
         success, response = self.run_test(
-            "List Jobs (Empty)",
+            "List Jobs (Initial)",
             "GET",
             "/jobs",
-            200
+            200,
+            auth_required=True
         )
         if success and 'items' in response:
             items = response['items']
