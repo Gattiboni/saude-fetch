@@ -134,6 +134,8 @@ async def get_results(job_id: str, format: str = "csv"):
     elif format == "json":
         try:
             df = pd.read_csv(export_path)
+            # Handle NaN values and ensure JSON compatibility
+            df = df.fillna("")  # Replace NaN with empty strings
             return JSONResponse(df.to_dict(orient="records"))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to read results: {e}")
