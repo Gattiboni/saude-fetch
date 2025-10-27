@@ -206,6 +206,27 @@ async def get_results(job_id: str, format: str = "csv", user: str = Depends(requ
     else:
         raise HTTPException(status_code=400, detail="Invalid format. Use csv, json or xlsx.")
 
+class CnpjRequest(BaseModel):
+    cnpjs: List[str]
+
+@app.post(f"{API_PREFIX}/fetch/cnpj")
+async def fetch_cnpj(req: CnpjRequest, user: str = Depends(require_auth)):
+    from pipelines.sulamerica_cnpj import run_cnpj_pipeline
+    try:
+        data = await run_cnpj_pipeline(req.cnpjs)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get(f"{API_PREFIX}/fetch/cnpj/export")
+async def fetch_cnpj_export(user: str = Depends(require_auth)):
+    from pipelines.sulamerica_cnpj import SUL_XLSX
+    if not os.path.exists(SUL_XLSX):
+        raise HTTPException(status_code=404, detail="XLSX não encontrado. Execute uma consulta primeiro.")
+    return FileResponse(SUL_XLSX, filename=os.path.basename(SUL_XLSX), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+
 @app.get(f"{API_PREFIX}/jobs/{{job_id}}/log")
 async def get_job_log(job_id: str, user: str = Depends(require_auth)):
     if not os.path.exists(LAST_RUN_LOG):
@@ -213,7 +234,7 @@ async def get_job_log(job_id: str, user: str = Depends(require_auth)):
     return FileResponse(LAST_RUN_LOG, filename="last_run.log", media_type="text/plain")
 
 @app.post(f"{API_PREFIX}/jobs", response_model=JobOut)
-async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(...), type: str = Form("auto"), user: str = Depends(require_auth)):
+async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(...), user: str = Depends(require_auth)):
     # Basic validation for file type
     filename = file.filename or "upload"
     ext = os.path.splitext(filename)[1].lower()
@@ -227,7 +248,7 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
     await db.jobs.insert_one({
         "_id": job_id,
         "filename": filename,
-        "type": type,
+        "type": "cpf",
         "status": "pending",
         "total": 0,
         "success": 0,
@@ -367,18 +388,13 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             # progress update every item
             await db.jobs.update_one({"_id": job_id}, {"$set": {"processed": processed, "total": total}})
 
-        # Export CSV of raw results (kept for audit/manual download)
-        export_name = f"{job_id}.csv"
-        export_path = os.path.join(EXPORT_DIR, export_name)
-        out_df = pd.DataFrame(results)
-        out_df.to_csv(export_path, index=False)
-
         # Build XLSX (CPF pipeline): CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS
+        out_df = pd.DataFrame(results)
         xlsx_path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
         build_xlsx_from_results(out_df, xlsx_path)
 
         # Write last run log (overwrite)
-        write_last_run_log(job_id, total, success, error, export_path, xlsx_path)
+        write_last_run_log(job_id, total, success, error, None, xlsx_path)
 
         await db.jobs.update_one({"_id": job_id}, {"$set": {
             "status": "completed",
@@ -387,7 +403,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             "error": error,
             "processed": processed,
             "completed_at": datetime.utcnow().isoformat(),
-            "export_path": export_path,
+            "export_path": None,
             "xlsx_path": xlsx_path,
         }})
     except Exception as e:
