@@ -1,10 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
-const API_BASE = (import.meta?.env?.REACT_APP_BACKEND_URL || import.meta?.env?.VITE_REACT_APP_BACKEND_URL || (typeof process !== 'undefined' ? process?.env?.REACT_APP_BACKEND_URL : ''))
+// ---- BEGIN env resolution: Vite-only + fallback dev ----
+const ve = import.meta?.env || {}
+
+const API_BASE =
+  // 1) padrão único para Vite
+  ve.VITE_BACKEND_URL ||
+  // 2) compat com var antiga do Neo (se sobrou)
+  ve.VITE_REACT_BACKEND_URL ||
+  // 3) fallback DEV: localhost:8001
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8001'
+    : '') // nada em produção se não vier do env
+// ---- END env resolution ----
 
 async function apiFetch(path, opts = {}) {
   const base = API_BASE
-  if (!base) throw new Error('REACT_APP_BACKEND_URL não configurada no ambiente do frontend')
+  if (!base) throw new Error('Backend URL não configurada (VITE_BACKEND_URL)')
   const url = base + path
   const headers = opts.headers || {}
   const token = localStorage.getItem('token')
@@ -18,6 +30,8 @@ async function apiFetch(path, opts = {}) {
   if (ct.includes('application/json')) return res.json()
   return res
 }
+
+
 async function downloadResult(jobId, format, filename){
   try{
     const res = await apiFetch(`/api/jobs/${jobId}/results?format=${format}`)
@@ -35,15 +49,7 @@ async function downloadResult(jobId, format, filename){
   }catch(e){ alert('Falha ao baixar resultado: ' + (e?.message||e)) }
 }
 
-    
-    // build summaries map
-    setSummaries(prev => {
-      const map = { ...prev }
-      (data.items||[]).forEach(j => {
-        map[j.id] = { total: j.total, success: j.success, error: j.error }
-      })
-      return map
-    })
+
 
 function PendingBadge(){
   return <span className="badge badge-processing" title="mapeamento pendente" data-testid="pending-badge">pendente</span>

@@ -84,7 +84,7 @@ function Start-Frontend {
         yarn install
     }
 
-    $frontCmd = "cd `"$frontendDir`"; yarn dev --host"
+    $frontCmd = "cd /d `"$frontendDir`"; yarn dev --host"
     $proc = Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit", "-Command", $frontCmd -WorkingDirectory $frontendDir -PassThru
     Write-Host "Frontend iniciado (PID: $($proc.Id)) na porta 3000."
     Pop-Location
