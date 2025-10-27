@@ -300,6 +300,8 @@ async def check_single_cnpj_real(page, cnpj: str) -> Dict[str, Any]:
 
 async def run_cnpj_pipeline(cnpjs: List[str]) -> Dict[str, Any]:
     _ensure_dirs()
+    await _ensure_playwright()
+    _check_credentials()
     # Sanitiza entradas
     norm = [digits_only(c) for c in cnpjs if digits_only(c)]
     results: List[Dict[str, Any]] = []
@@ -318,8 +320,11 @@ async def run_cnpj_pipeline(cnpjs: List[str]) -> Dict[str, Any]:
                 await login_and_navigate(page)
 
                 for c in norm:
+                    start = datetime.utcnow()
+                    retry_count = 0
                     try:
                         item = await check_single_cnpj_real(page, c)
+                        success = True
                     except Exception as e:
                         await screenshot(page, f"cnpj_error_{c}")
                         item = {
@@ -328,6 +333,10 @@ async def run_cnpj_pipeline(cnpjs: List[str]) -> Dict[str, Any]:
                             "mensagem_portal": str(e),
                             "timestamp": datetime.utcnow().isoformat() + "Z",
                         }
+                        success = False
+                    finally:
+                        elapsed = (datetime.utcnow() - start).total_seconds()
+                        _log(f"CNPJ {format_cnpj(c)} tempo_total={elapsed:.2f}s retry_count={retry_count} success={success}")
                     results.append(item)
                     if item["status"] == "ativo":
                         ativos += 1
@@ -343,10 +352,31 @@ async def run_cnpj_pipeline(cnpjs: List[str]) -> Dict[str, Any]:
                 break
             await asyncio.sleep(2.0 * login_attempts)
 
+    # Export XLSX consolidado
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment
+        os.makedirs(EXPORT_DIR, exist_ok=True)
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "SulAmérica CNPJ"
+        ws.append(["CNPJ", "STATUS", "MENSAGEM", "TIMESTAMP"])
+        for r in results:
+            ws.append([r.get("cnpj",""), r.get("status",""), r.get("mensagem_portal",""), r.get("timestamp","")])
+        # Forçar CNPJ como texto
+        for cell in ws["A"]:
+            cell.number_format = "@"
+            cell.alignment = Alignment(horizontal="left")
+        wb.save(SUL_XLSX)
+        _log(f"Export XLSX gerado em {SUL_XLSX}")
+    except Exception as e:
+        _log(f"Falha ao exportar XLSX: {e}")
+
     return {
         "total": len(norm),
         "ativos": ativos,
         "inativos": inativos,
         "resultados": results,
         "items": results,
+        "xlsx_path": SUL_XLSX if os.path.exists(SUL_XLSX) else None,
     }
