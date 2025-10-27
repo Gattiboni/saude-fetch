@@ -1,28 +1,40 @@
-# OPERATIONS — saude-fetch (Revisado)
+==============================
+## DOCUMENTO: OPERATIONS.md
+==============================
 
-## 2025-10-26 — Operação dos pipelines Neo (Emergent)
-### Stack atual
-- Python 3.12 + Selenium + ChromeDriverManager (para testes locais).
-- Neo (emergent.sh) responsável por execução, controle de fluxo e integração com FastAPI.
-- Logs e snapshots mantidos em `/docs/mappings/`.
+### Execução Local — Pós-Merge Neo-1
 
-### Execução via Neo
-- `pipeline_cpf.py`: consultas públicas (Unimed, Amil, Bradesco, Seguros Unimed).
-- `pipeline_cnpj.py`: consulta autenticada (SulAmérica).
+#### Setup e inicialização
+1. Clonar o repositório e confirmar branch `main` atualizada.
+2. Rodar o script correspondente ao sistema operacional:
+   - Windows: `setup.bat`
+   - Linux/Mac: `bash setup.sh`
+3. O script cria `.venv`, instala dependências, copia `.env.example` para `.env` e gera atalho **“Fetch Saúde”** no desktop.
+4. Após o setup, abrir o atalho ou acessar manualmente `http://localhost:3000`.
 
-### Boas práticas
-- Garantir que todos os mapeamentos estejam atualizados em `/docs/mappings/`.
-- O Neo deve ler os arquivos de referência `mappings_reference.json` para identificar seletores e fluxos.
-- Logs são gerados automaticamente pelo sistema, preservando rastreabilidade.
+#### Login
+- Entrar com credenciais definidas no `.env` (`APP_USER`, `APP_PASS`).
+- Token de sessão é válido por 24h.
 
-### Troubleshooting
-| Problema | Causa provável | Ação |
-|-----------|----------------|------|
-| Pipeline não inicia | Mapeamentos incompletos | Verificar JSONs em `/docs/mappings/` |
-| Falha na autenticação SulAmérica | Credenciais inválidas | Atualizar `.env` local de teste |
-| Resultados inconsistentes | DOM alterado pelo provedor | Regenerar HTML base e consolidar novamente |
+#### Consulta CPF
+1. Selecionar aba “Consulta CPF” (ativa por padrão).
+2. Fazer upload do CSV com lista de CPFs.
+3. Acompanhar o progresso percentual (em %) e visualizar o resumo final.
+4. Fazer download dos resultados em CSV, JSON ou XLSX.
+   - XLSX inclui colunas fixas: `CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS`.
 
-## 2025-10-24 — Ambiente e execução do mapeador Selenium
-- Stack de automação local (Python 3.12 + Selenium 4.25 + ChromeDriverManager 4.0.2).
-- Execução via `map_sites_selenium.py`.
-- Boas práticas de execução e logs preservadas.
+#### Consulta CNPJ
+- Aba visível, mas funcionalidade **on hold** (SulAmérica exige autenticação).
+
+#### Reload de mappings
+- Endpoint: `POST /api/mappings/reload`
+- Uso: após inserir novos arquivos JSON em `/docs/mappings`.
+- Permite recarregar configurações sem reiniciar o backend.
+
+#### Logs
+- Log único por execução: `app/data/logs/last_run.log`.
+- Exportação opcional (manual).
+
+#### Teste e Validação
+- Teste funcional local com `Lista CPF.csv`.
+- Esperado: resultados “mapeamento pendente” até inclusão de mappings reais.

@@ -1,17 +1,21 @@
-# CHANGELOG — saude-fetch
+==============================
+## DOCUMENTO: CHANGELOG.md
+==============================
 
-## 2025-10-26 — Separação dos pipelines e integração via Neo (Emergent)
-- Introdução de dois pipelines distintos: **CPF** (consultas públicas) e **CNPJ** (SulAmérica autenticada).
-- Atualização de documentação e scripts conforme mapeamentos validados (Unimed, Amil, Bradesco, Seguros Unimed).
-- Integração completa com o **Neo (emergent.sh)** para geração automática de conectores e execução em lote.
-- Manutenção de logs e snapshots em `/docs/mappings/`.
-- Documentação reorganizada para refletir a sequência: mapeamento → consolidação → execução automatizada.
+### [2025-10-27] — Integração Neo-1 concluída e merge na main
+- Integração completa das features entregues pela branch **Neo-1**:
+  - Implementação de drivers para Unimed, Amil, Bradesco, Seguros Unimed e SulAmérica (on hold com auth inativo).
+  - Adição de autenticação simples com token JWT e login via usuário/senha definidos em `.env`.
+  - Implementação de rotas `/api` para health, auth, jobs, reload de mappings e resultados (CSV/JSON/XLSX).
+  - Processamento assíncrono com barra de progresso e geração de arquivo XLSX padronizado (`CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS`), mantendo CPF formatado `xxx.xxx.xxx-xx`.
+  - Simplificação de logs com sobrescrita única em `last_run.log`.
+  - Implementação de throttling configurável via `.env` (`FETCH_MIN_DELAY`, `FETCH_MAX_DELAY`) e rotação leve de user-agents.
+  - Criação de UI com login, abas CPF (ativa) e CNPJ (inativa), resumo por job e indicadores “mapeamento pendente”.
+  - Inclusão de scripts `setup.sh` e `setup.bat`, `.env.example` e atalho automático “Fetch Saúde”.
+- Merge concluído preservando `Docs/` e `README.md` originais.
+- Testes finais validados localmente com fluxo completo (login → upload → processamento → download).
 
-## 2025-10-24 — Mapeador Selenium e ajustes de ambiente
-- Substituição completa do Playwright por **Selenium + ChromeDriverManager** (versão estável para Windows/Python 3.12).
-- Adição de logs automáticos e snapshots HTML.
-- Implementação de login SulAmérica com credenciais de teste.
-- Criação de `map_sites_selenium.py` em `/Scripts/`.
-- Atualização do `requirements.txt` para dependências compatíveis.
-- Execuções validadas para Unimed e Seguros Unimed.
-- Observação: Amil, Bradesco e SulAmérica exigem tratamento dinâmico adicional (JS/Login).
+### [2025-10-20] — Estrutura inicial dos pipelines
+- Definição dos pipelines CPF e CNPJ (on hold).
+- Configuração básica de FastAPI + React + MongoDB.
+- Implementação do primeiro fluxo de upload CSV e export JSON/CSV.

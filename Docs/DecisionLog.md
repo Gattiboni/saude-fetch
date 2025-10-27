@@ -1,37 +1,19 @@
-# DECISION_LOG — saude-fetch
+==============================
+## DOCUMENTO: DECISIONLOG.md
+==============================
 
-## 2025-10-26 — Consolidação de fluxos e automação via Neo (Emergent)
-**Decisão:** Centralizar a execução de pipelines (CPF e CNPJ) sob o Neo (emergent.sh), que passa a ser responsável por orquestração, automação e deploy.
+### [2025-10-27] — Decisões da fase Neo
+- **Entrega sem empacotamento automático:** o build final entrega apenas o código funcional; o empacotamento e execução local são realizados manualmente.
+- **Autenticação mínima:** login local obrigatório via `.env` (APP_USER/PASS) com token JWT.
+- **Logs otimizados:** apenas o último log completo é mantido (`last_run.log`), exportação manual opcional.
+- **Padrão de saída:** XLSX consolidado com cabeçalhos fixos e CPF formatado como texto.
+- **Throttling configurável:** via `.env`, garantindo estabilidade e prevenção de bloqueio por scraping.
+- **Reload de mappings:** endpoint `/api/mappings/reload` ativa leitura dos JSONs sem reinício.
+- **Docs e README imutáveis:** sempre preservados durante merges e sincronizações.
+- **Fluxo de testes local:** execução validada internamente, sem dependência de agentes externos após o merge final.
 
-**Motivos:**
-- Unificar execução e manutenção.
-- Garantir consistência entre ambientes locais e remotos.
-- Reduzir intervenção manual.
-
-**Impactos:**
-- Neo executa os pipelines CPF (público) e CNPJ (autenticado) com base nos JSONs de mapeamento.
-- Documentação, logs e snapshots mantidos no padrão incremental.
-
-## 2025-10-24 — Adaptação para qualificação por tipo de consulta
-**Decisão:** Separar o fluxo de qualificação entre CPFs e CNPJs para melhor compatibilidade com interfaces que exigem autenticação (ex.: SulAmérica).
-**Motivos:**
-- SulAmérica requer login e navegação dedicada; demais operadoras são públicas.
-- Evita falhas de sessão e simplifica futuras integrações de UI.
-**Impactos:**
-- No front-end haverá dois botões distintos: "Qualificar CPF" e "Qualificar CNPJ".
-- Cada botão acionará o fluxo correspondente (público ou autenticado).
-
-## 2025-10-24 — Troca de Playwright por Selenium
-**Decisão:** Mudar a stack de automação de Playwright para **Selenium**, garantindo compatibilidade com Windows e estabilidade de execução.
-**Motivos:**
-- Playwright apresentava falhas de build e cache (versões de Chromium conflitantes).
-- Selenium é amplamente suportado e mais previsível para scripts locais.
-**Impactos:**
-- Novo script `map_sites_selenium.py` substitui o anterior.
-- Dependências ajustadas (`selenium`, `webdriver-manager`).
-- Processo de mapeamento permanece igual — snapshots HTML e JSON com elementos DOM.
-
-## 2025-10-23 — Adoção de estrutura rastreável para documentação
-**Decisão:** Consolidar todos os documentos em `/docs/` com histórico incremental no topo de cada arquivo.
-**Motivo:** Garantir rastreabilidade total e auditabilidade contínua.
-**Impacto:** Novo fluxo de versionamento documental unificado.
+### [2025-10-22] — Decisões de arquitetura inicial
+- Separação de pipelines CPF/CNPJ.
+- Exportação padronizada (JSON/CSV).
+- Estrutura modular de drivers e logs por operadora.
+- Uso de MongoDB com UUIDs como identificadores únicos.

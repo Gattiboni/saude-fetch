@@ -1,65 +1,55 @@
-# STACK — saude-fetch (Revisado)
+==============================
+## DOCUMENTO: STACK.md
+==============================
 
-## 2025-10-26 — Integração final com Neo (Emergent)
-**Objetivo:** padronizar o ambiente e delegar automação ao Neo.
+### Arquitetura Técnica — Estado Atual (2025-10-27)
 
-### 1. Componentes principais
-| Componente | Tecnologia |
-|-------------|-------------|
-| Linguagem | Python 3.12 |
-| Automação | Selenium + ChromeDriverManager / Neo (emergent.sh) |
-| Parsing HTML | BeautifulSoup4 + lxml |
-| Logging | logging (nativo Python) / emergent logs |
-| Output | JSON + HTML snapshot / JSON consolidado |
+#### Backend
+- **Framework:** FastAPI + Uvicorn
+- **Banco:** MongoDB via `motor` (assíncrono)
+- **Processamento:** `pandas` + `openpyxl`
+- **Autenticação:** JWT (`APP_USER`, `APP_PASS`, `APP_SECRET`)
+- **Drivers:** Unimed, Amil, Bradesco, Seguros Unimed, SulAmérica (inativo)
+- **Throttling:** configurável via `.env` (`FETCH_MIN_DELAY`, `FETCH_MAX_DELAY`)
+- **Logs:** sobrescreve `last_run.log`
+- **Reload mappings:** endpoint `/api/mappings/reload`
+- **Arquivos de saída:** CSV, JSON, XLSX (formato fixo, CPF como texto)
 
-### 2. Estrutura atualizada
-```bash
+#### Frontend
+- **Framework:** Vite + React + TailwindCSS
+- **Autenticação:** Login → token armazenado no `localStorage`
+- **Funcionalidades:**
+  - Upload CSV/XLSX
+  - Progresso (%) por execução
+  - Resumo por job (Consultados/Sucesso/Falhas)
+  - Downloads: CSV/JSON/XLSX
+  - Badge “mapeamento pendente”
+- **Abas:** CPF (ativa) / CNPJ (inativa)
+
+#### Configuração e Deploy Local
+- `.env.example` completo com comentários.
+- `setup.sh` e `setup.bat` automatizam instalação e criação de atalho “Fetch Saúde”.
+- Execução local via `make setup` (alternativa técnica).
+
+#### Estrutura de pastas
+```
 saude-fetch/
-├── Scripts/
-│   ├── map_sites_full_v2.py
-│   ├── pipeline_cpf.py
-│   ├── pipeline_cnpj.py
-│   └── requirements.txt
-├── docs/
-│   ├── mappings/
-│   │   ├── *.json
-│   │   └── *.html
-│   ├── CHANGELOG.md
-│   ├── DECISION_LOG.md
-│   ├── OPERATIONS.md
-│   └── STACK.md
-└── README.md
+├─ app/
+│  ├─ backend/
+│  │  ├─ server.py
+│  │  ├─ drivers/
+│  │  ├─ utils/auth.py
+│  │  └─ data/logs/
+│  ├─ frontend/
+│  └─ data/
+├─ scripts/
+│  ├─ setup.sh
+│  └─ setup.bat
+├─ Docs/
+├─ .env.example
+└─ README.md
 ```
 
-### 3. Fluxo de operação
-1. Neo lê os mapeamentos e gera automaticamente os conectores.
-2. Execução dos pipelines CPF e CNPJ.
-3. Consolidação dos resultados em `consolidated_mappings.json`.
-4. Logs e snapshots versionados em `/docs/mappings/`.
-
-### 4. Dependências
-```bash
-selenium==4.25.0
-webdriver-manager==4.0.2
-beautifulsoup4==4.12.3
-lxml==4.9.3
-requests==2.32.3
-python-dotenv==1.0.1
-pandas==2.2.3
-colorama==0.4.6
-```
-
-### 5. Observações
-- Neo (Emergent) é responsável pelo deploy e execução orquestrada.
-- Scripts locais servem apenas para depuração e validação manual.
-- Estrutura mantida compatível com o padrão incremental de documentação.
-
-## 2025-10-24 — Versão Selenium
-**Objetivo:** automatizar o mapeamento estrutural de portais de operadoras de saúde (Amil, Bradesco, SulAmérica, Unimed e Seguros Unimed).
-- Componentes, fluxo e dependências originais mantidos.
-- Atualização de compatibilidade confirmada para Windows e execução local.
-
----
-
-✅ **Documentação consolidada — versão 2025-10-26.**  
-Todos os documentos seguem o padrão incremental, com novas entradas sempre no topo.
+#### Testes e Logs
+- Agente automático não é mais necessário após merge final.
+- Testes locais confirmam estabilidade completa do fluxo.
