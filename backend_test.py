@@ -235,7 +235,7 @@ class SaudeFetchAPITester:
         return False
 
     def test_get_job(self):
-        """Test getting a specific job"""
+        """Test getting a specific job (requires auth)"""
         if not self.job_id:
             print("   ⚠️ No job ID available, skipping test")
             return False
@@ -244,7 +244,8 @@ class SaudeFetchAPITester:
             "Get Job",
             "GET",
             f"/jobs/{self.job_id}",
-            200
+            200,
+            auth_required=True
         )
         
         if success and response.get('id') == self.job_id:
