@@ -370,14 +370,28 @@ def main():
     print("🚀 Starting saude-fetch API tests...")
     tester = SaudeFetchAPITester()
     
-    # Run all tests
+    # Run all tests in order
     tests = [
+        # Public endpoints
         tester.test_health,
+        
+        # Authentication tests
+        tester.test_login_success,
+        tester.test_login_failure,
+        tester.test_protected_route_without_auth,
+        tester.test_protected_route_with_auth,
+        
+        # Protected endpoints (require auth)
+        tester.test_mappings_reload,
         tester.test_list_jobs_empty,
         tester.test_create_job,
         tester.test_get_job,
         tester.test_job_results,
+        tester.test_job_log,
         tester.test_list_jobs_with_data,
+        
+        # Configuration tests
+        tester.test_driver_throttling,
     ]
     
     for test in tests:
