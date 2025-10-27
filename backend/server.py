@@ -217,6 +217,14 @@ async def fetch_cnpj(req: CnpjRequest, user: str = Depends(require_auth)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get(f"{API_PREFIX}/fetch/cnpj/export")
+async def fetch_cnpj_export(user: str = Depends(require_auth)):
+    from pipelines.sulamerica_cnpj import SUL_XLSX
+    if not os.path.exists(SUL_XLSX):
+        raise HTTPException(status_code=404, detail="XLSX não encontrado. Execute uma consulta primeiro.")
+    return FileResponse(SUL_XLSX, filename=os.path.basename(SUL_XLSX), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 
 @app.get(f"{API_PREFIX}/jobs/{{job_id}}/log")
 async def get_job_log(job_id: str, user: str = Depends(require_auth)):
