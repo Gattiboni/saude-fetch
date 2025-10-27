@@ -256,14 +256,14 @@ class SaudeFetchAPITester:
         return False
 
     def test_job_results(self):
-        """Test getting job results in CSV and JSON format"""
+        """Test getting job results in CSV, JSON and XLSX format (requires auth)"""
         if not self.job_id:
             print("   ⚠️ No job ID available, skipping test")
             return False
             
         # Wait a bit for job processing
         print("   ⏳ Waiting for job processing...")
-        time.sleep(3)
+        time.sleep(5)
         
         # Test CSV format
         csv_success, _ = self.run_test(
@@ -271,7 +271,8 @@ class SaudeFetchAPITester:
             "GET",
             f"/jobs/{self.job_id}/results",
             200,
-            params={'format': 'csv'}
+            params={'format': 'csv'},
+            auth_required=True
         )
         
         # Test JSON format  
@@ -280,13 +281,43 @@ class SaudeFetchAPITester:
             "GET",
             f"/jobs/{self.job_id}/results",
             200,
-            params={'format': 'json'}
+            params={'format': 'json'},
+            auth_required=True
+        )
+        
+        # Test XLSX format
+        xlsx_success, _ = self.run_test(
+            "Get Results (XLSX)",
+            "GET",
+            f"/jobs/{self.job_id}/results",
+            200,
+            params={'format': 'xlsx'},
+            auth_required=True
         )
         
         if json_success and isinstance(json_response, list):
             print(f"   ✓ JSON results contain {len(json_response)} records")
             
-        return csv_success and json_success
+        return csv_success and json_success and xlsx_success
+
+    def test_job_log(self):
+        """Test getting job log (requires auth)"""
+        if not self.job_id:
+            print("   ⚠️ No job ID available, skipping test")
+            return False
+            
+        success, _ = self.run_test(
+            "Get Job Log",
+            "GET",
+            f"/jobs/{self.job_id}/log",
+            200,
+            auth_required=True
+        )
+        
+        if success:
+            print("   ✓ Job log retrieved successfully")
+            
+        return success
 
     def test_list_jobs_with_data(self):
         """Test listing jobs after creating one"""
