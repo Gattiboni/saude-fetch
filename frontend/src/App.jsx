@@ -114,6 +114,9 @@ export default function App() {
         {listError && (
           <div className="text-red-300" data-testid="jobs-error">{listError}</div>
         )}
+        {errorMsg && (
+          <div className="text-red-300" data-testid="upload-error">{errorMsg}</div>
+        )}
         <div className="overflow-auto">
           <table className="table" data-testid="jobs-table">
             <thead>
