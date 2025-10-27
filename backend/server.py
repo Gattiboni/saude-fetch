@@ -8,6 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 
+# Load .env if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join("/app", "backend", ".env"))
+except Exception:
+    pass
+
 # Database (MongoDB via Motor)
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
