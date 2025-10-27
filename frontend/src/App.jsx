@@ -63,7 +63,7 @@ function Login({ onSuccess }){
     setError('')
     setLoading(true)
     try{
-      const res = await apiFetch('/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
+      const res = await apiFetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
       localStorage.setItem('token', res.token)
       onSuccess()
     }catch(err){ setError(String(err.message||err)) }
