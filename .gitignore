@@ -1,3 +1,9 @@
+# === MongoDB data ===
+data/
+data/**
+*.lock
+
+
 # Python virtual environments
 .venv/
 venv/
