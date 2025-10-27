@@ -11,9 +11,10 @@ from pydantic import BaseModel
 # Load .env if present
 try:
     from dotenv import load_dotenv
-    load_dotenv(os.path.join("/app", "backend", ".env"))
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 except Exception:
     pass
+
 
 # Database (MongoDB via Motor)
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase

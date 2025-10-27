@@ -1,6 +1,6 @@
 <#
-start_saude_fetch.ps1 — versão restaurada e corrigida
-Abre backend e frontend em janelas separadas, igual à primeira versão funcional.
+start_saude_fetch.ps1 — versão corrigida
+Ajuste: cada serviço é iniciado no diretório correto (app/backend e app/frontend)
 #>
 
 param(

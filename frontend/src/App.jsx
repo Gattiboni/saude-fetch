@@ -1,27 +1,50 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
-const API_BASE =
-  import.meta?.env?.REACT_APP_BACKEND_URL ||
-  import.meta?.env?.VITE_REACT_APP_BACKEND_URL ||
-  (typeof process !== 'undefined' ? process?.env?.REACT_APP_BACKEND_URL : '')
+// ---- BEGIN robust env resolution (Vite + CRA safe) ----
+const viteEnv = import.meta?.env || {}
+const VITE_BASE = viteEnv.VITE_REACT_APP_BACKEND_URL
+const REACT_BASE = viteEnv.REACT_APP_BACKEND_URL
+// CRA substitui REACT_APP_BACKEND_URL no build, mas process pode não existir no Vite
+let CRA_BASE = ''
+try {
+  CRA_BASE = (typeof process !== 'undefined' && process.env?.REACT_APP_BACKEND_URL) || ''
+} catch {
+  CRA_BASE = ''
+}
+const API_BASE = VITE_BASE || REACT_BASE || CRA_BASE || ''
+console.log('--------- DEBUG ENV START ---------');
+console.log('viteEnv:', import.meta.env);
+console.log('API_BASE computed as:', API_BASE);
+console.log('--------- DEBUG ENV END ---------');
+
+
+// ---- END robust env resolution ----
+
 
 async function apiFetch(path, opts = {}) {
   const base = API_BASE
-  if (!base)
-    throw new Error('REACT_APP_BACKEND_URL não configurada no ambiente do frontend')
+  if (!base) {
+    throw new Error(
+      'Backend URL ausente. Defina VITE_REACT_APP_BACKEND_URL ou REACT_APP_BACKEND_URL no .env do frontend.'
+    )
+  }
+
   const url = base + path
   const headers = opts.headers || {}
   const token = localStorage.getItem('token')
   if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(url, { ...opts, headers })
   if (!res.ok) {
     const text = await res.text()
     throw new Error(text || `Erro HTTP ${res.status}`)
   }
+
   const ct = res.headers.get('content-type') || ''
   if (ct.includes('application/json')) return res.json()
   return res
 }
+
 
 function StatusBar({ jobs }) {
   const running = jobs.filter((j) => j.status === 'processing').length
