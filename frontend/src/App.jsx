@@ -28,8 +28,6 @@ function StatusBar({ jobs }){
   )
 }
 
-}
-
 function useJobsPoll(enabled = true) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(false)
