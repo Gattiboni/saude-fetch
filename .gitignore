@@ -1,4 +1,35 @@
--e 
-# Environment files
-*.env
-*.env.*
+# Python virtual environments
+.venv/
+venv/
+venv1/
+backend/.venv/
+*/venv/
+*/.venv/
+
+# Python cache and build
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+
+# Node and frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.code-workspace
+
+# Environment and config files
+.env
+backend/.env
+frontend/.env
+
+# OS files
+.DS_Store
+Thumbs.db
