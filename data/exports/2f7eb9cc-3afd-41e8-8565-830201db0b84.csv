@@ -1,4 +1,0 @@
-input,type,operator,status,plan,message,captured_at
-12345678901,cpf,,unknown,,mapeamento pendente,2025-10-27T00:59:45.454590
-12345678000195,cnpj,,unknown,,mapeamento pendente,2025-10-27T00:59:45.454598
-,unknown,,invalid,,identificador inválido (esperado CPF/CNPJ),2025-10-27T00:59:45.454600
