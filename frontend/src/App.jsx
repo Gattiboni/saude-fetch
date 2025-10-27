@@ -214,8 +214,10 @@ export default function App() {
                   <td className="label">{j.completed_at?.replace('T',' ').replace('Z','') || '-'}</td>
                   <td>
                     <div className="flex gap-2">
-                      <a data-testid={`download-csv-${j.id}`} className="btn" href={`${API_BASE}/jobs/${j.id}/results?format=csv`} target="_blank" rel="noreferrer">CSV</a>
-                      <a data-testid={`download-json-${j.id}`} className="btn" href={`${API_BASE}/jobs/${j.id}/results?format=json`} target="_blank" rel="noreferrer">JSON</a>
+                      <button data-testid={`download-csv-${j.id}`} className="btn" onClick={()=> downloadResult(j.id, 'csv', `${j.id}.csv`)}>CSV</button>
+                      <button data-testid={`download-json-${j.id}`} className="btn" onClick={()=> downloadResult(j.id, 'json', `${j.id}.json`)}>JSON</button>
+                      <button data-testid={`download-xlsx-${j.id}`} className="btn" onClick={()=> downloadResult(j.id, 'xlsx', `${j.id}.xlsx`)}>XLSX</button>
+                      <button data-testid={`job-summary-${j.id}`} className="btn" onClick={()=> toggleSummary(j)}>Resumo</button>
                     </div>
                   </td>
                 </tr>
