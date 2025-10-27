@@ -16,22 +16,20 @@ class SaudeFetchAPITester:
             with open(frontend_env_path, 'r') as f:
                 for line in f:
                     if line.startswith('REACT_APP_BACKEND_URL='):
-                        backend_path = line.split('=', 1)[1].strip().strip('"')
-                        # Since it's "/api", we need to construct the full URL
-                        # In production, this would be the external URL, but for testing we'll use localhost
-                        self.base_url = f"http://localhost:8001{backend_path}"
+                        self.base_url = line.split('=', 1)[1].strip().strip('"')
                         break
         except Exception as e:
             print(f"Warning: Could not read frontend .env: {e}")
             
         if not self.base_url:
-            self.base_url = "http://localhost:8001/api"
+            self.base_url = "https://docs-hub-4.preview.emergentagent.com"
             
         print(f"Testing backend at: {self.base_url}")
         
         self.tests_run = 0
         self.tests_passed = 0
         self.job_id = None
+        self.token = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, files=None, params=None):
         """Run a single API test"""
