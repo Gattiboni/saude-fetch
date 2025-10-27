@@ -280,14 +280,29 @@ async def check_single_cnpj_real(page, cnpj: str) -> Dict[str, Any]:
     status = "inativo"
     message = ""
 
-    # Heurística: buscar mensagem indicando bloqueio por plano existente
+    # Heurística: buscar mensagens exatas
     try:
-        locator = page.locator("text=já possui plano")
-        if await locator.count() > 0:
+        # plano existente
+        if await page.locator("text=/\bjá possui plano\b/i").count() > 0:
             status = "ativo"
             message = "O CNPJ informado já possui plano."
+        # cnpj inválido
+        elif await page.locator("text=/\bCNPJ inválido\b/i").count() > 0:
+            status = "erro"
+            message = "CNPJ inválido"
+        else:
+            # se não bloqueou, assume inativo
+            status = "inativo"
     except Exception:
         pass
+
+    # loga todo texto visível da página (curto) para auditoria
+    try:
+        body_text = await page.inner_text('body')
+        snippet = body_text[:400].replace('\n',' ')
+        _log(f"PortalText: {snippet}")
+    except Exception:
+        _log("PortalText: <unavailable>")
 
     _log(f"CNPJ {format_cnpj(cnpj)} → {status}")
     return {
