@@ -53,6 +53,43 @@ function useJobsPoll() {
   return { jobs, loading, error }
 }
 
+function Login({ onSuccess }){
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try{
+      const res = await apiFetch('/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) })
+      localStorage.setItem('token', res.token)
+      onSuccess()
+    }catch(err){ setError(String(err.message||err)) }
+    finally{ setLoading(false) }
+  }
+  return (
+    <div className="container">
+      <div className="card space-y-4 max-w-md mx-auto">
+        <h2 className="text-xl font-semibold">Entrar</h2>
+        <form className="space-y-3" onSubmit={submit}>
+          <div>
+            <label className="label">Usuário</label>
+            <input data-testid="login-username" className="input w-full" value={username} onChange={e=>setUsername(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Senha</label>
+            <input data-testid="login-password" type="password" className="input w-full" value={password} onChange={e=>setPassword(e.target.value)} />
+          </div>
+          {error && <div className="text-red-300" data-testid="login-error">{error}</div>}
+          <button data-testid="login-submit-button" className="btn" disabled={loading}>{loading?'Entrando…':'Entrar'}</button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const { jobs, loading: listLoading, error: listError } = useJobsPoll()
   const [file, setFile] = useState(null)
