@@ -200,7 +200,7 @@ class SaudeFetchAPITester:
         return temp_file.name
 
     def test_create_job(self):
-        """Test creating a job with CSV upload"""
+        """Test creating a job with CSV upload (requires auth)"""
         csv_path = self.create_test_csv()
         
         try:
@@ -214,7 +214,8 @@ class SaudeFetchAPITester:
                     "/jobs",
                     200,  # FastAPI returns 200 for successful POST, not 201
                     data=data,
-                    files=files
+                    files=files,
+                    auth_required=True
                 )
                 
                 if success and 'id' in response:
