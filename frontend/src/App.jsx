@@ -206,6 +206,11 @@ export default function App() {
           <div className="flex items-center gap-3">
             {listLoading && <span className="label" data-testid="jobs-loading">atualizando…</span>}
           </div>
+      <section className="card space-y-4" data-testid="cnpj-card">
+        <h3 className="text-lg font-medium">Consulta CNPJ (SulAmérica)</h3>
+        <CnpjForm />
+      </section>
+
         </div>
         <StatusBar jobs={jobs} />
         {listError && (
