@@ -18,6 +18,34 @@ async function apiFetch(path, opts = {}) {
   if (ct.includes('application/json')) return res.json()
   return res
 }
+async function downloadResult(jobId, format, filename){
+  try{
+    const res = await apiFetch(`/api/jobs/${jobId}/results?format=${format}`)
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url)
+    } else {
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url)
+    }
+  }catch(e){ alert('Falha ao baixar resultado: ' + (e?.message||e)) }
+}
+
+function PendingBadge(){
+  return <span className="badge badge-processing" title="mapeamento pendente" data-testid="pending-badge">pendente</span>
+}
+
+function toggleSummary(j){
+  const id = `summary-${j.id}`
+  const el = document.getElementById(id)
+  if (!el) return
+  el.classList.toggle('hidden')
+}
+
 
 function StatusBar({ jobs }){
   const running = jobs.filter(j => j.status === 'processing').length
