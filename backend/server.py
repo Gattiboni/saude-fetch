@@ -251,28 +251,47 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             itype = detect_type(ident) if forced_type == "auto" else forced_type
             if itype not in ("cpf", "cnpj"):
                 error += 1
-                status = "invalid"
-                message = "identificador inválido (esperado CPF/CNPJ)"
-            else:
+                results.append({
+                    "input": ident,
+                    "type": itype,
+                    "operator": "",
+                    "status": "invalid",
+                    "plan": "",
+                    "message": "identificador inválido (esperado CPF/CNPJ)",
+                    "captured_at": datetime.utcnow().isoformat(),
+                })
+                continue
+
+            # Run through drivers with throttling and retries (safe placeholders)
+            # For esta fase: retornos baseados no mapping (ou pendente)
+            item_has_result = False
+            for drv in drivers:
+                try:
+                    dres: DriverResult = await drv.consult(ident, itype)
+                    results.append({
+                        "input": ident,
+                        "type": itype,
+                        "operator": drv.name,
+                        "status": dres.status,
+                        "plan": dres.plan,
+                        "message": dres.message,
+                        "captured_at": datetime.utcnow().isoformat(),
+                    })
+                    item_has_result = True
+                except Exception as e:
+                    results.append({
+                        "input": ident,
+                        "type": itype,
+                        "operator": drv.name,
+                        "status": "error",
+                        "plan": "",
+                        "message": str(e),
+                        "captured_at": datetime.utcnow().isoformat(),
+                    })
+            if item_has_result:
                 success += 1
-                status = "unknown"
-                message = "mapeamento pendente"
-
-            results.append({
-
-        # Export also a JSON copy for convenience
-        json_export_path = os.path.join(EXPORT_DIR, f"{job_id}.json")
-        out_df.fillna("").to_json(json_export_path, orient="records", force_ascii=False)
-
-
-                "input": ident,
-                "type": itype,
-                "operator": "",
-                "status": status,
-                "plan": "",
-                "message": message,
-                "captured_at": datetime.utcnow().isoformat(),
-            })
+            else:
+                error += 1
 
         export_name = f"{job_id}.csv"
         export_path = os.path.join(EXPORT_DIR, export_name)
