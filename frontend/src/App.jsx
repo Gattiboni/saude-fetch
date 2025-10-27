@@ -78,7 +78,19 @@ export default function App() {
         <form className="space-y-4" onSubmit={createJob}>
           <div className="space-y-1">
             <label className="label" htmlFor="file">Arquivo (CSV ou Excel)</label>
-            <input id="file" data-testid="upload-input-file" type="file" accept=".csv,.xlsx,.xls" className="input w-full" onChange={(e)=> setFile(e.target.files?.[0] || null)} />
+            <input id="file" data-testid="upload-input-file" type="file" accept=".csv,.xlsx,.xls" className="input w-full" onChange={(e)=> {
+              const f = e.target.files?.[0] || null
+              setErrorMsg('')
+              if (f) {
+                const ok = ['text/csv','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+                if (!ok.includes(f.type) && !/\.(csv|xlsx|xls)$/i.test(f.name)) {
+                  setErrorMsg('Arquivo inválido. Envie CSV ou Excel.')
+                  setFile(null)
+                  return
+                }
+              }
+              setFile(f)
+            }} />
           </div>
           <div className="space-y-1">
             <label className="label" htmlFor="type">Tipo</label>
