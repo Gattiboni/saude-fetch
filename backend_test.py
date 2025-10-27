@@ -31,10 +31,14 @@ class SaudeFetchAPITester:
         self.job_id = None
         self.token = None
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, files=None, params=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, files=None, params=None, auth_required=False):
         """Run a single API test"""
-        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        url = f"{self.base_url}/api/{endpoint.lstrip('/')}"
         headers = {}
+        
+        # Add authorization header if token is available and auth is required
+        if auth_required and self.token:
+            headers['Authorization'] = f'Bearer {self.token}'
         
         # Don't set Content-Type for multipart/form-data (files)
         if not files:
@@ -49,7 +53,11 @@ class SaudeFetchAPITester:
                 response = requests.get(url, headers=headers, params=params)
             elif method == 'POST':
                 if files:
-                    response = requests.post(url, files=files, data=data)
+                    # Remove Content-Type for multipart
+                    auth_headers = {}
+                    if auth_required and self.token:
+                        auth_headers['Authorization'] = f'Bearer {self.token}'
+                    response = requests.post(url, files=files, data=data, headers=auth_headers)
                 else:
                     response = requests.post(url, json=data, headers=headers)
 
