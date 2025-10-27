@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
-const API_BASE = (import.meta?.env?.REACT_APP_BACKEND_URL || import.meta?.env?.VITE_REACT_APP_BACKEND_URL || (typeof process !== 'undefined' ? process?.env?.REACT_APP_BACKEND_URL : ''))
+const API_BASE = (import.meta?.env?.REACT_APP_BACKEND_URL || import.meta?.env?.VITE_REACT_APP_BACKEND_URL || (typeof process !== 'undefined' ? process?.env?.REACT_APP_BACKEND_URL : '') || 'https://docs-hub-4.preview.emergentagent.com')
 
 async function apiFetch(path, opts = {}) {
   const base = API_BASE
