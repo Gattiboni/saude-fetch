@@ -25,7 +25,7 @@ function useJobsPoll() {
     const tick = async () => {
       try {
         setLoading(true)
-        const data = await apiFetch('/api/jobs')
+        const data = await apiFetch('/jobs')
         setJobs(data.items || [])
         setError('')
       } catch (e) {
