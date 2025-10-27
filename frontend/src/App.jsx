@@ -14,6 +14,15 @@ async function apiFetch(path, opts = {}) {
   const ct = res.headers.get('content-type') || ''
   if (ct.includes('application/json')) return res.json()
   return res
+function StatusBar({ jobs }){
+  const running = jobs.filter(j => j.status === 'processing').length
+  return (
+    <div className="w-full h-2 bg-gray-800 rounded" data-testid="progress-bar">
+      <div className="h-2 bg-blue-500 rounded" style={{ width: `${Math.min(100, running ? 30 : 100)}%`, transition: 'width 0.4s' }} />
+    </div>
+  )
+}
+
 }
 
 function useJobsPoll() {
