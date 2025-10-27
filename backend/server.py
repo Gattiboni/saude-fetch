@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -20,6 +20,8 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 # File handling and data
 import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
 
 # Ensure local imports work even if run as a script (supervisor uvicorn)
 import sys
@@ -34,18 +36,23 @@ from drivers.unimed import UnimedDriver
 from drivers.seguros_unimed import SegurosUnimedDriver
 from drivers.sulamerica import SulamericaDriver
 from drivers.base import DriverResult
+from drivers.driver_manager import manager as driver_manager
 from utils.logger import JobLogger
+from utils.auth import create_access_token, verify_token, check_credentials, AuthError
 
 # Constants
 API_PREFIX = "/api"
 BASE_DIR = "/app"
 UPLOAD_DIR = os.path.join(BASE_DIR, "data", "uploads")
 EXPORT_DIR = os.path.join(BASE_DIR, "data", "exports")
+LOGS_DIR = os.path.join(BASE_DIR, "data", "logs")
+LAST_RUN_LOG = os.path.join(LOGS_DIR, "last_run.log")
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(EXPORT_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
 
-app = FastAPI(title="saude-fetch API", version="0.1.0")
+app = FastAPI(title="saude-fetch API", version="0.2.0")
 
 # CORS - allow frontend (reads URL from env; fallback to *)
 frontend_origin = os.environ.get("FRONTEND_ORIGIN", "*")
@@ -73,6 +80,7 @@ class JobOut(BaseModel):
     error: int
     created_at: str
     completed_at: Optional[str] = None
+    processed: Optional[int] = 0
 
 class JobList(BaseModel):
     items: List[JobOut]
@@ -94,12 +102,46 @@ async def shutdown_event():
     if mongo_client:
         mongo_client.close()
 
+# ----- Auth -----
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+class LoginOut(BaseModel):
+    token: str
+    expires_in_hours: int
+
+async def require_auth(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing token")
+    token = authorization.split(" ", 1)[1]
+    try:
+        user = verify_token(token)
+        return user
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+@app.post(f"{API_PREFIX}/auth/login", response_model=LoginOut)
+async def login(data: LoginIn):
+    if not check_credentials(data.username, data.password):
+        raise HTTPException(status_code=401, detail="invalid credentials")
+    token = create_access_token(data.username, 24)
+    return LoginOut(token=token, expires_in_hours=24)
+
+# ----- Health -----
 @app.get(f"{API_PREFIX}/health")
 async def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
 
+# ----- Mappings reload -----
+@app.post(f"{API_PREFIX}/mappings/reload")
+async def mappings_reload(user: str = Depends(require_auth)):
+    driver_manager.reload()
+    return {"status": "reloaded"}
+
+# ----- Jobs -----
 @app.get(f"{API_PREFIX}/jobs", response_model=JobList)
-async def list_jobs():
+async def list_jobs(user: str = Depends(require_auth)):
     db = await get_db()
     cursor = db.jobs.find({}, sort=[("created_at", -1)], limit=50)
     items: List[JobOut] = []
@@ -114,11 +156,12 @@ async def list_jobs():
             error=doc.get("error", 0),
             created_at=doc.get("created_at", ""),
             completed_at=doc.get("completed_at"),
+            processed=doc.get("processed", 0),
         ))
     return JobList(items=items)
 
 @app.get(f"{API_PREFIX}/jobs/{{job_id}}", response_model=JobOut)
-async def get_job(job_id: str):
+async def get_job(job_id: str, user: str = Depends(require_auth)):
     db = await get_db()
     doc = await db.jobs.find_one({"_id": job_id})
     if not doc:
@@ -133,10 +176,11 @@ async def get_job(job_id: str):
         error=doc.get("error", 0),
         created_at=doc.get("created_at", ""),
         completed_at=doc.get("completed_at"),
+        processed=doc.get("processed", 0),
     )
 
 @app.get(f"{API_PREFIX}/jobs/{{job_id}}/results")
-async def get_results(job_id: str, format: str = "csv"):
+async def get_results(job_id: str, format: str = "csv", user: str = Depends(require_auth)):
     db = await get_db()
     doc = await db.jobs.find_one({"_id": job_id})
     if not doc:
@@ -149,16 +193,26 @@ async def get_results(job_id: str, format: str = "csv"):
     elif format == "json":
         try:
             df = pd.read_csv(export_path)
-            # Handle NaN values and ensure JSON compatibility
-            df = df.fillna("")  # Replace NaN with empty strings
+            df = df.fillna("")
             return JSONResponse(df.to_dict(orient="records"))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to read results: {e}")
+    elif format == "xlsx":
+        xlsx_path = doc.get("xlsx_path")
+        if not xlsx_path or not os.path.exists(xlsx_path):
+            raise HTTPException(status_code=404, detail="XLSX not available")
+        return FileResponse(xlsx_path, filename=os.path.basename(xlsx_path), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     else:
-        raise HTTPException(status_code=400, detail="Invalid format. Use csv or json.")
+        raise HTTPException(status_code=400, detail="Invalid format. Use csv, json or xlsx.")
+
+@app.get(f"{API_PREFIX}/jobs/{{job_id}}/log")
+async def get_job_log(job_id: str, user: str = Depends(require_auth)):
+    if not os.path.exists(LAST_RUN_LOG):
+        raise HTTPException(status_code=404, detail="No log available")
+    return FileResponse(LAST_RUN_LOG, filename="last_run.log", media_type="text/plain")
 
 @app.post(f"{API_PREFIX}/jobs", response_model=JobOut)
-async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(...), type: str = Form("auto")):
+async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(...), type: str = Form("auto"), user: str = Depends(require_auth)):
     # Basic validation for file type
     filename = file.filename or "upload"
     ext = os.path.splitext(filename)[1].lower()
@@ -169,7 +223,6 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
     job_id = str(uuid.uuid4())
     created_at = datetime.utcnow().isoformat()
 
-    # Persist initial job document with deterministic _id (UUID string)
     await db.jobs.insert_one({
         "_id": job_id,
         "filename": filename,
@@ -178,9 +231,11 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
         "total": 0,
         "success": 0,
         "error": 0,
+        "processed": 0,
         "created_at": created_at,
         "completed_at": None,
         "export_path": None,
+        "xlsx_path": None,
         "file_path": None,
         "error_message": None,
     })
@@ -208,11 +263,19 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
         error=0,
         created_at=created_at,
         completed_at=None,
+        processed=0,
     )
 
+# ----- Helpers -----
 
 def clean_identifier(s: str) -> str:
     return "".join(ch for ch in str(s) if ch.isdigit())
+
+
+def format_cpf(cpf_digits: str) -> str:
+    if len(cpf_digits) != 11:
+        return cpf_digits
+    return f"{cpf_digits[0:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:11]}"
 
 
 def detect_type(identifier: str) -> str:
@@ -231,15 +294,11 @@ def to_rows(df: pd.DataFrame, forced_type: str) -> List[str]:
         series = df[col].dropna().astype(str)
         if not series.empty:
             return [clean_identifier(x) for x in series.tolist() if str(x).strip()]
-    # Fallback: try values
     return []
 
-
 async def process_job(job_id: str, path: str, forced_type: str = "auto"):
-    # Prepare drivers (no external interaction yet; mapping-driven)
-    drivers = [UnimedDriver(), AmilDriver(), BradescoDriver(), SegurosUnimedDriver(), SulamericaDriver()]
-
     db = await get_db()
+    logger = JobLogger(job_id, LOGS_DIR)
     try:
         ext = os.path.splitext(path)[1].lower()
         if ext == ".csv":
@@ -252,11 +311,15 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
         results = []
         success = 0
         error = 0
+        processed = 0
+
+        drivers = driver_manager.drivers
 
         for ident in identifiers:
             itype = detect_type(ident) if forced_type == "auto" else forced_type
             if itype not in ("cpf", "cnpj"):
                 error += 1
+                processed += 1
                 results.append({
                     "input": ident,
                     "type": itype,
@@ -266,10 +329,9 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     "message": "identificador inválido (esperado CPF/CNPJ)",
                     "captured_at": datetime.utcnow().isoformat(),
                 })
+                await db.jobs.update_one({"_id": job_id}, {"$set": {"processed": processed, "total": total}})
                 continue
 
-            # Run through drivers with throttling and retries (safe placeholders)
-            # For esta fase: retornos baseados no mapping (ou pendente)
             item_has_result = False
             for drv in drivers:
                 try:
@@ -294,33 +356,98 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                         "message": str(e),
                         "captured_at": datetime.utcnow().isoformat(),
                     })
+
             if item_has_result:
                 success += 1
             else:
                 error += 1
+            processed += 1
 
+            # progress update every item
+            await db.jobs.update_one({"_id": job_id}, {"$set": {"processed": processed, "total": total}})
+
+        # Export CSV of raw results (kept for audit/manual download)
         export_name = f"{job_id}.csv"
         export_path = os.path.join(EXPORT_DIR, export_name)
         out_df = pd.DataFrame(results)
         out_df.to_csv(export_path, index=False)
 
-        # Export also a JSON copy for convenience
-        json_export_path = os.path.join(EXPORT_DIR, f"{job_id}.json")
-        out_df.fillna("").to_json(json_export_path, orient="records", force_ascii=False)
+        # Build XLSX (CPF pipeline): CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS
+        xlsx_path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
+        build_xlsx_from_results(out_df, xlsx_path)
+
+        # Write last run log (overwrite)
+        write_last_run_log(job_id, total, success, error, export_path, xlsx_path)
 
         await db.jobs.update_one({"_id": job_id}, {"$set": {
             "status": "completed",
             "total": total,
             "success": success,
             "error": error,
+            "processed": processed,
             "completed_at": datetime.utcnow().isoformat(),
             "export_path": export_path,
+            "xlsx_path": xlsx_path,
         }})
     except Exception as e:
+        write_last_run_log(job_id, 0, 0, 0, None, None, error_message=str(e))
         await db.jobs.update_one({"_id": job_id}, {"$set": {
             "status": "failed",
             "error_message": str(e),
             "completed_at": datetime.utcnow().isoformat(),
         }})
+
+# ---- XLSX builder and logs ----
+
+def build_xlsx_from_results(df: pd.DataFrame, out_path: str):
+    # Aggregate per CPF
+    header = ["CPF", "AMIL", "BRADESCO", "UNIMED", "UNIMED SEGUROS"]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Consulta CPF"
+    ws.append(header)
+    # Build map: cpf -> operator -> value
+    by_cpf = {}
+    for _, row in df.iterrows():
+        if row.get("type") != "cpf":
+            continue
+        cpf_digits = str(row.get("input", ""))
+        cpf_fmt = format_cpf(cpf_digits)
+        op = str(row.get("operator", "")).lower()
+        plan = str(row.get("plan", ""))
+        status = str(row.get("status", ""))
+        val = plan if plan else status
+        if not cpf_fmt:
+            continue
+        if cpf_fmt not in by_cpf:
+            by_cpf[cpf_fmt] = {}
+        by_cpf[cpf_fmt][op] = val
+    # Write rows
+    for cpf_fmt, ops in by_cpf.items():
+        row = [cpf_fmt, ops.get("amil", ""), ops.get("bradesco", ""), ops.get("unimed", ""), ops.get("seguros_unimed", "")]
+        ws.append(row)
+    # Force CPF as text
+    for cell in ws["A"]:
+        cell.number_format = "@"
+        cell.alignment = Alignment(horizontal="left")
+    wb.save(out_path)
+
+
+def write_last_run_log(job_id: str, total: int, success: int, error: int, csv_path: Optional[str], xlsx_path: Optional[str], error_message: Optional[str] = None):
+    lines = []
+    lines.append(f"job_id: {job_id}")
+    lines.append(f"total: {total}")
+    lines.append(f"success: {success}")
+    lines.append(f"error: {error}")
+    if csv_path:
+        lines.append(f"csv: {csv_path}")
+    if xlsx_path:
+        lines.append(f"xlsx: {xlsx_path}")
+    if error_message:
+        lines.append(f"error_message: {error_message}")
+    data = "\n".join(lines) + "\n"
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    with open(LAST_RUN_LOG, "w", encoding="utf-8") as f:
+        f.write(data)
 
 # Note: Uvicorn server is managed by Supervisor outside this file. Bind should remain 0.0.0.0:8001.
