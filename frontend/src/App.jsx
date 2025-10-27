@@ -127,6 +127,7 @@ export default function App() {
   const [type, setType] = useState('auto')
   const [creating, setCreating] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [summaries, setSummaries] = useState({})
   const uploadingDisabled = useMemo(() => !file || creating, [file, creating])
 
   const createJob = async (e) => {
