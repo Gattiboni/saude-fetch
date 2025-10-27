@@ -118,8 +118,11 @@ export default function App() {
       <section className="card space-y-3" data-testid="jobs-list-card">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Execuções recentes</h2>
-          {listLoading && <span className="label" data-testid="jobs-loading">atualizando…</span>}
+          <div className="flex items-center gap-3">
+            {listLoading && <span className="label" data-testid="jobs-loading">atualizando…</span>}
+          </div>
         </div>
+        <StatusBar jobs={jobs} />
         {listError && (
           <div className="text-red-300" data-testid="jobs-error">{listError}</div>
         )}
