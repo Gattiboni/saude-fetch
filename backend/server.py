@@ -256,6 +256,12 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                 message = "mapeamento pendente"
 
             results.append({
+
+        # Export also a JSON copy for convenience
+        json_export_path = os.path.join(EXPORT_DIR, f"{job_id}.json")
+        out_df.fillna("").to_json(json_export_path, orient="records", force_ascii=False)
+
+
                 "input": ident,
                 "type": itype,
                 "operator": "",
