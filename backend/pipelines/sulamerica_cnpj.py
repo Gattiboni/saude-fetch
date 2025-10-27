@@ -86,6 +86,7 @@ async def screenshot(page, label: str):
 
 
 async def login_and_navigate(page) -> None:
+    _check_credentials()
     # 1) Login
     await page.goto(LOGIN_URL, wait_until="domcontentloaded")
     await _delay()
