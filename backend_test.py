@@ -82,7 +82,7 @@ class SaudeFetchAPITester:
             return False, {}
 
     def test_health(self):
-        """Test health endpoint"""
+        """Test health endpoint (should be public)"""
         success, response = self.run_test(
             "Health Check",
             "GET",
@@ -94,6 +94,79 @@ class SaudeFetchAPITester:
             return True
         elif success:
             print(f"   ⚠️ Health status is '{response.get('status')}', expected 'ok'")
+        return False
+
+    def test_login_success(self):
+        """Test successful login with correct credentials"""
+        success, response = self.run_test(
+            "Login (Success)",
+            "POST",
+            "/auth/login",
+            200,
+            data={"username": "admin", "password": "admin"}
+        )
+        if success and 'token' in response:
+            self.token = response['token']
+            print(f"   ✓ Token received: {self.token[:20]}...")
+            print(f"   ✓ Expires in: {response.get('expires_in_hours')} hours")
+            return True
+        return False
+
+    def test_login_failure(self):
+        """Test login failure with incorrect credentials"""
+        success, response = self.run_test(
+            "Login (Failure)",
+            "POST",
+            "/auth/login",
+            401,
+            data={"username": "wrong", "password": "wrong"}
+        )
+        return success
+
+    def test_protected_route_without_auth(self):
+        """Test that protected routes block access without token"""
+        # Temporarily clear token
+        old_token = self.token
+        self.token = None
+        
+        success, response = self.run_test(
+            "Jobs List (No Auth)",
+            "GET",
+            "/jobs",
+            401,
+            auth_required=True
+        )
+        
+        # Restore token
+        self.token = old_token
+        return success
+
+    def test_protected_route_with_auth(self):
+        """Test that protected routes allow access with valid token"""
+        success, response = self.run_test(
+            "Jobs List (With Auth)",
+            "GET",
+            "/jobs",
+            200,
+            auth_required=True
+        )
+        if success and 'items' in response:
+            print(f"   ✓ Found {len(response['items'])} jobs")
+            return True
+        return False
+
+    def test_mappings_reload(self):
+        """Test mappings reload endpoint (requires auth)"""
+        success, response = self.run_test(
+            "Mappings Reload",
+            "POST",
+            "/mappings/reload",
+            200,
+            auth_required=True
+        )
+        if success and response.get('status') == 'reloaded':
+            print("   ✓ Mappings reloaded successfully")
+            return True
         return False
 
     def test_list_jobs_empty(self):
