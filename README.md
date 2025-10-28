@@ -6,7 +6,7 @@
 
 ## Visão Geral
 
-O **saude-fetch** é uma ferramenta de automação para qualificação de CPFs e CNPJs em portais de operadoras de saúde — **Unimed**, **Amil**, **Bradesco**, **Seguros Unimed** e **SulAmérica** — retornando informações de planos ativos de forma auditável e escalável.
+O **saude-fetch** é uma ferramenta de automação para qualificação de CPFs e CNPJs em portais de operadoras de saúde — **unimed**, **amil**, **bradesco**, **Seguros unimed** e **SulAmérica** — retornando informações de planos ativos de forma auditável e escalável.
 
 O sistema adota uma arquitetura modular e segura, com backend em **FastAPI** e frontend em **React**, permitindo consultas em lote, geração de relatórios e logs auditáveis.  
 A aplicação roda localmente, com instalação simplificada e autenticação mínima.
@@ -55,7 +55,7 @@ A aplicação roda localmente, com instalação simplificada e autenticação m�
    - Selecionar aba **Consulta CPF**.  
    - Upload de CSV/XLSX com CPFs.  
    - Acompanhar progresso e visualizar o resumo.  
-   - Baixar resultados em **XLSX** (`CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS`).
+   - Baixar resultados em **XLSX** (`CPF | amil | bradesco | unimed | unimed SEGUROS`).
 
 4. **Consulta CNPJ**
    - Aba exibida, mas **inativa** (aguarda credenciais SulAmérica).
@@ -73,7 +73,7 @@ A aplicação roda localmente, com instalação simplificada e autenticação m�
 - **MongoDB (motor assíncrono)**
 - **pandas + openpyxl**
 - **JWT Auth** (`APP_USER`, `APP_PASS`, `APP_SECRET`)
-- **Drivers:** Unimed, Amil, Bradesco, Seguros Unimed, SulAmérica (auth inativo)
+- **Drivers:** unimed, amil, bradesco, Seguros unimed, SulAmérica (auth inativo)
 - **Throttling:** `FETCH_MIN_DELAY`, `FETCH_MAX_DELAY` configuráveis
 
 ### Frontend
@@ -95,10 +95,10 @@ A aplicação roda localmente, com instalação simplificada e autenticação m�
 
 | Operadora | Critério de Sucesso | Critério de Falha |
 | ---------- | ------------------- | ----------------- |
-| **Unimed** | Dados de plano e cooperativa | CPF inválido |
-| **Amil** | Exibe nome do plano | Modal “não encontrado” |
-| **Bradesco** | Modal “Selecione o beneficiário” | “Beneficiário não encontrado” |
-| **Seguros Unimed** | Informações de plano | Erro / CPF inválido |
+| **unimed** | Dados de plano e cooperativa | CPF inválido |
+| **amil** | Exibe nome do plano | Modal “não encontrado” |
+| **bradesco** | Modal “Selecione o beneficiário” | “Beneficiário não encontrado” |
+| **Seguros unimed** | Informações de plano | Erro / CPF inválido |
 | **SulAmérica** | Login necessário (CNPJ) | Acesso negado |
 
 ---

@@ -21,7 +21,7 @@
 2. Fazer upload do CSV com lista de CPFs.
 3. Acompanhar o progresso percentual (em %) e visualizar o resumo final.
 4. Fazer download dos resultados em CSV, JSON ou XLSX.
-   - XLSX inclui colunas fixas: `CPF | AMIL | BRADESCO | UNIMED | UNIMED SEGUROS`.
+   - XLSX inclui colunas fixas: `CPF | amil | bradesco | unimed | unimed SEGUROS`.
 
 #### Consulta CNPJ
 - Aba visível, mas funcionalidade **on hold** (SulAmérica exige autenticação).

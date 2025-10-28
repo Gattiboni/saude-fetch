@@ -1,0 +1,33 @@
+{
+  "operator": "bradesco",
+  "url": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
+      "wait_for": "input[placeholder*='insira seus dados para a busca']"
+    },
+    {
+      "action": "fill",
+      "selector": "input[placeholder*='insira seus dados para a busca']",
+      "value": "876.259.387-00"
+    },
+    {
+      "action": "keypress",
+      "selector": "input[placeholder*='insira seus dados para a busca']",
+      "key": "Enter"
+    },
+    {
+      "action": "wait_for",
+      "selector": ".modal-selecao-beneficiario, .modal-erro-beneficiario",
+      "timeout_ms": 10000
+    }
+  ],
+  "result_parsing": {
+    "status_selector": ".modal-selecao-beneficiario, .modal-erro-beneficiario",
+    "positive_keywords": ["Selecione o beneficiário", "Escolha o beneficiário", "plano", "cartão"],
+    "negative_keywords": ["Beneficiário não encontrado", "Dados inválidos", "erro", "CPF incorreto"],
+    "error_keywords": ["Beneficiário não encontrado", "Dados inválidos", "CPF incorreto", "erro"]
+  },
+  "notes": "A busca do CPF pode ser submetida tanto clicando na lupa quanto pressionando Enter no campo. Se o beneficiário existir, aparece o modal '.modal-selecao-beneficiario' para escolha de plano/cartão. Se não existir, aparece modal '.modal-erro-beneficiario' com a mensagem 'Beneficiário não encontrado'. Há também possibilidade de consentimento de cookies/disclaimer, normalmente via popup/botão no rodapé."
+}

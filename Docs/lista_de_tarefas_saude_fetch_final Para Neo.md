@@ -11,7 +11,7 @@
 
 ### 2.1 Pipeline CPF
 
-- Operadoras: **Unimed**, **Amil**, **Bradesco**, **Seguros Unimed**.
+- Operadoras: **unimed**, **amil**, **bradesco**, **Seguros unimed**.
 - Funções:
   - Acessar automaticamente os links definidos.
   - Mapear completamente o comportamento das páginas (inputs, botões, modais e respostas).
@@ -48,10 +48,10 @@
 - Usar os CPFs de teste fornecidos como baseline “true”:
   | Operadora      | URL                                                                                                                                                                                              | CPF de teste   |
   | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
-  | Unimed         | [https://www.unimed.coop.br/site/guia-medico#/](https://www.unimed.coop.br/site/guia-medico#/)                                                                                                   | 958.817.007-91 |
-  | Amil           | [https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada](https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada)       | 162.366.007-67 |
-  | Bradesco       | [https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada](https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada) | 876.259.387-00 |
-  | Seguros Unimed | [https://www.segurosunimed.com.br/guia-medico/](https://www.segurosunimed.com.br/guia-medico/)                                                                                                   | 006.105.100-45 |
+  | unimed         | [https://www.unimed.coop.br/site/guia-medico#/](https://www.unimed.coop.br/site/guia-medico#/)                                                                                                   | 958.817.007-91 |
+  | amil           | [https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada](https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada)       | 162.366.007-67 |
+  | bradesco       | [https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada](https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada) | 876.259.387-00 |
+  | Seguros unimed | [https://www.segurosunimed.com.br/guia-medico/](https://www.segurosunimed.com.br/guia-medico/)                                                                                                   | 006.105.100-45 |
 
 ---
 

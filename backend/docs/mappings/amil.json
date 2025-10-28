@@ -1,0 +1,46 @@
+{
+  "operator": "amil",
+  "url": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
+      "wait_for": "#searchCpfOrCard"
+    },
+    {
+      "action": "fill",
+      "selector": "#searchCpfOrCard",
+      "value": "{identifier}"
+    },
+    {
+      "action": "click",
+      "selector": ".js-search-icon"
+    },
+    {
+      "action": "wait_for",
+      "selector": "#bs-modal-selecioneBeneficiario, .bs-modal__container .bs-alert__title",
+      "timeout_ms": 12000
+    }
+  ],
+  "result_parsing": {
+    "status_selector": ".bs-modal__container .bs-alert__title",
+    "positive_keywords": [
+      "Selecione o beneficiário",
+      "Escolha o beneficiário",
+      "beneficiário encontrado",
+      "plano"
+    ],
+    "negative_keywords": [
+      "Beneficiário não encontrado",
+      "Dados inválidos",
+      "preencha corretamente",
+      "erro"
+    ],
+    "error_keywords": [
+      "erro",
+      "inválido",
+      "não encontrado"
+    ]
+  },
+  "notes": "Fluxo real: o campo #searchCpfOrCard recebe o CPF. Ao clicar no ícone .js-search-icon (ou pressionar Enter), a página exibe um modal. Se o CPF for válido, o modal #bs-modal-selecioneBeneficiario aparece com o texto 'Selecione o beneficiário'. Se inválido, surge outro modal com título 'Beneficiário não encontrado' e conteúdo 'Dados inválidos, por favor, preencha corretamente.'."
+}

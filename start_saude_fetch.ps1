@@ -1,6 +1,9 @@
 <#
-start_saude_fetch.ps1 — versão corrigida
-Ajuste: cada serviço é iniciado no diretório correto (app/backend e app/frontend)
+start_saude_fetch.ps1 — versão corrigida e ampliada
+Ajustes adicionados:
+- Carrega backend\.env no ambiente antes de subir o uvicorn
+- Garante playwright install chromium na venv do backend
+Demais comportamentos originais preservados (atalho, PIDs, janelas separadas, etc.)
 #>
 
 param(
@@ -23,6 +26,26 @@ function Get-Pids() {
         try { return Get-Content $MetaFile -Raw | ConvertFrom-Json } catch { return $null }
     }
     return $null
+}
+
+function Import-DotEnv {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return }
+    try {
+        Get-Content $Path | ForEach-Object {
+            if ($_ -match "^\s*([^#][^=]*?)=(.*)$") {
+                $name = $matches[1].Trim()
+                $value = $matches[2].Trim()
+                # remove aspas se existirem
+                if ($value.StartsWith('"') -and $value.EndsWith('"')) { $value = $value.Trim('"') }
+                if ($value.StartsWith("'") -and $value.EndsWith("'")) { $value = $value.Trim("'") }
+                [System.Environment]::SetEnvironmentVariable($name, $value)
+            }
+        }
+        Write-Host "Variáveis carregadas de $Path"
+    } catch {
+        Write-Warning "Falha ao ler ${Path}: $($_.Exception.Message)"
+    }
 }
 
 function Start-Mongo {
@@ -64,8 +87,19 @@ function Start-Backend {
     if (Test-Path $activate) {
         & $activate
         pip install -r requirements.txt
+        # garante playwright chromium dentro da venv
+        try {
+            playwright install chromium | Out-Null
+        } catch {
+            Write-Warning "Falha ao instalar Chromium via Playwright (pode já estar instalado): $($_.Exception.Message)"
+        }
     }
 
+    # carrega backend\.env no ambiente do processo PAI (herdado pelos filhos)
+    $envFile = Join-Path $backendDir ".env"
+    Import-DotEnv -Path $envFile
+
+    # inicia uvicorn em nova janela no diretório do backend
     $uvicornCmd = ".\\.venv\\Scripts\\Activate.ps1; uvicorn server:app --host 0.0.0.0 --port 8001"
     $proc = Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit", "-Command", $uvicornCmd -WorkingDirectory $backendDir -PassThru
     Write-Host "Backend iniciado (PID: $($proc.Id)) na porta 8001."

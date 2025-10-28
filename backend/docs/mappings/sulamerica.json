@@ -1,0 +1,47 @@
+{
+  "operator": "sulamerica",
+  "url": "https://www.sulamericaseguros.com.br/guia-medico",
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "https://www.sulamericaseguros.com.br/guia-medico",
+      "wait_for": "input[placeholder*='CPF']"
+    },
+    {
+      "action": "fill",
+      "selector": "input[placeholder*='CPF']",
+      "value": "{identifier}"
+    },
+    {
+      "action": "click",
+      "selector": "button[type='submit']"
+    },
+    {
+      "action": "wait_for",
+      "selector": ".resultado-busca, .mensagem-erro, .modal-body",
+      "timeout_ms": 10000
+    }
+  ],
+  "result_parsing": {
+    "status_selector": ".resultado-busca, .mensagem-erro, .modal-body",
+    "positive_keywords": [
+      "plano",
+      "beneficiário encontrado",
+      "ativo",
+      "válido",
+      "selecionar beneficiário"
+    ],
+    "negative_keywords": [
+      "não encontrado",
+      "inativo",
+      "inválido",
+      "erro"
+    ],
+    "error_keywords": [
+      "erro",
+      "inválido",
+      "não encontrado"
+    ]
+  },
+  "notes": "Placeholder temporário. Ajustar quando o HTML real estiver disponível. Espera-se um campo de CPF ou número de beneficiário e uma validação que retorne informações do plano ou uma mensagem de erro similar a 'beneficiário não encontrado'."
+}

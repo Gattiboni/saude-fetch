@@ -9,7 +9,7 @@
 - **Banco:** MongoDB via `motor` (assíncrono)
 - **Processamento:** `pandas` + `openpyxl`
 - **Autenticação:** JWT (`APP_USER`, `APP_PASS`, `APP_SECRET`)
-- **Drivers:** Unimed, Amil, Bradesco, Seguros Unimed, SulAmérica (inativo)
+- **Drivers:** unimed, amil, bradesco, Seguros unimed, SulAmérica (inativo)
 - **Throttling:** configurável via `.env` (`FETCH_MIN_DELAY`, `FETCH_MAX_DELAY`)
 - **Logs:** sobrescreve `last_run.log`
 - **Reload mappings:** endpoint `/api/mappings/reload`

@@ -1,0 +1,44 @@
+{
+  "operator": "unimed",
+  "url": "https://www.unimed.coop.br/site/guia-medico#/",
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "https://www.unimed.coop.br/site/guia-medico#/",
+      "wait_for": "#client-input"
+    },
+    {
+      "action": "fill",
+      "selector": "#client-input",
+      "value": "{identifier}"
+    },
+    {
+      "action": "wait_for",
+      "selector": "#NameIdenticadedUser, .ClientInputWithLabel--text",
+      "timeout_ms": 10000
+    }
+  ],
+  "result_parsing": {
+    "status_selector": "#NameIdenticadedUser, .ClientInputWithLabel--text",
+    "positive_keywords": [
+      "UNIMED",
+      "FERJ",
+      "plano",
+      "cooperado",
+      "beneficiário",
+      "ativo"
+    ],
+    "negative_keywords": [
+      "É cliente? Digite seu CPF ou carteirinha",
+      "inválido",
+      "não encontrado",
+      "erro"
+    ],
+    "error_keywords": [
+      "erro",
+      "inválido",
+      "não encontrado"
+    ]
+  },
+  "notes": "O campo de CPF tem ID #client-input. Após digitar um CPF válido, aparece um texto no elemento #NameIdenticadedUser com o nome da cooperativa (exemplo: 'UNIMED FERJ'). Se o CPF for inválido ou não vinculado, o texto padrão exibido é 'É cliente? Digite seu CPF ou carteirinha'. Nenhum botão de envio é necessário, a verificação ocorre automaticamente após o preenchimento do campo. O ícone verde de check (check-ok-green.svg) indica CPF válido, enquanto o ícone info-round-icon.svg indica CPF inválido."
+}

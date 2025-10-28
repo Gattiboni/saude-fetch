@@ -1,9 +1,13 @@
 from .base import BaseDriver, DriverResult
 
 class SulamericaDriver(BaseDriver):
-    name = "sulamerica"
-    requires_auth = True
+    def __init__(self):
+        super().__init__("sulamerica")
 
-    async def _perform(self, identifier: str, id_type: str) -> DriverResult:
-        # Nesta fase, login inativo: apenas sinalizar pendência
-        return DriverResult(operator=self.name, status="pending", plan="", message="login requerido (inativo nesta fase)")
+    async def _perform(self, identifier, id_type):
+        # placeholder, se o CNPJ ainda é quem usa SulAmérica real
+        return DriverResult(
+            operator="sulamerica",
+            status="pending",
+            message="Driver SulAmérica não implementado para CPF."
+        )

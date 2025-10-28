@@ -12,7 +12,7 @@ O projeto baseia-se em dois pipelines independentes:
 
 ### Pipeline 1 — CPF
 
-- Operadoras: **Unimed**, **Amil**, **Bradesco**, **Seguros Unimed**.
+- Operadoras: **unimed**, **amil**, **bradesco**, **Seguros unimed**.
 - Realizar consultas públicas e não autenticadas de CPFs, retornando informações estruturadas de planos e categorias.
 - Gerar evidências e resultados consistentes conforme os critérios binários de sucesso e falha.
 
