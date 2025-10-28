@@ -8,6 +8,12 @@
       "wait_for": "#searchCpfOrCard"
     },
     {
+      "action": "click",
+      "selector": "#onetrust-accept-btn-handler, button[data-testid='accept-all'], button[aria-label*='aceitar']",
+      "optional": true,
+      "delay": 0.5
+    },
+    {
       "action": "fill",
       "selector": "#searchCpfOrCard",
       "value": "{identifier}"
@@ -23,7 +29,7 @@
     }
   ],
   "result_parsing": {
-    "status_selector": ".bs-modal__container .bs-alert__title",
+    "status_selector": ".bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__description, body",
     "positive_keywords": [
       "Selecione o beneficiário",
       "Escolha o beneficiário",
@@ -40,7 +46,9 @@
       "erro",
       "inválido",
       "não encontrado"
-    ]
+    ],
+    "plan_selector": ".bs-modal__container .bs-alert__description",
+    "plan_optional": true
   },
   "notes": "Fluxo real: o campo #searchCpfOrCard recebe o CPF. Ao clicar no ícone .js-search-icon (ou pressionar Enter), a página exibe um modal. Se o CPF for válido, o modal #bs-modal-selecioneBeneficiario aparece com o texto 'Selecione o beneficiário'. Se inválido, surge outro modal com título 'Beneficiário não encontrado' e conteúdo 'Dados inválidos, por favor, preencha corretamente.'."
 }
