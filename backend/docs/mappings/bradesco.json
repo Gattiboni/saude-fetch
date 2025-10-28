@@ -10,7 +10,7 @@
     {
       "action": "fill",
       "selector": "input[placeholder*='insira seus dados para a busca']",
-      "value": "876.259.387-00"
+      "value": "{identifier}"
     },
     {
       "action": "keypress",
