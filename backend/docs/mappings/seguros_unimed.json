@@ -5,41 +5,47 @@
     {
       "action": "navigate",
       "target": "https://www.segurosunimed.com.br/portal/guia-medico",
-      "wait_for": "input[placeholder='Informe o CPF ou número do cartão']"
+      "wait_for": "input[placeholder*='CPF' i], input[name*='cpf' i]",
+      "timeout_ms": 20000
     },
     {
       "action": "fill",
-      "selector": "input[placeholder='Informe o CPF ou número do cartão']",
-      "value": "{identifier}"
+      "selector": "input[placeholder*='CPF' i], input[name*='cpf' i]",
+      "value": "{identifier}",
+      "timeout_ms": 20000
     },
     {
       "action": "wait_for",
-      "selector": ".s-text.s-text-secondary, .s-input-feedback-invalid",
-      "timeout_ms": 12000
+      "selector": "text=/plano/i, text=/não localizamos/i, .s-text.s-text-secondary, .s-input-feedback-invalid",
+      "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": ".s-text.s-text-secondary, .s-input-feedback-invalid",
+    "status_selector": "text=/plano/i, text=/não localizamos/i, .s-text.s-text-secondary, .s-input-feedback-invalid",
+    "status_timeout_ms": 20000,
+    "status_poll_interval_ms": 300,
     "positive_keywords": [
-      "plano",
-      "unimed",
-      "pme",
-      "compacto",
-      "enf",
-      "empresa",
-      "cooperado"
+      "PLANO",
+      "UNIMED",
+      "PME",
+      "COMPACTO",
+      "EMPRESA",
+      "COOPERADO",
+      "ATIVO"
     ],
     "negative_keywords": [
-      "Não localizamos plano",
-      "CPF informado",
-      "inválido",
-      "erro"
+      "NÃO LOCALIZAMOS",
+      "CPF INFORMADO",
+      "INVÁLIDO",
+      "SEM PLANO"
     ],
     "error_keywords": [
-      "erro",
-      "inválido",
-      "não localizamos"
-    ]
+      "ERRO",
+      "INVÁLIDO",
+      "NÃO LOCALIZAMOS"
+    ],
+    "plan_selector": ".s-text.s-text-secondary",
+    "plan_optional": true
   },
-  "notes": "Fluxo real: o CPF é inserido no input com placeholder 'Informe o CPF ou número do cartão'. Se o CPF for válido, aparece um parágrafo com classe '.s-text.s-text-secondary' contendo o nome do plano (ex: 'PME COMPACTO ENF'). Caso o CPF seja inválido, é exibida uma mensagem de erro no elemento '.s-input-feedback-invalid' com o texto 'Não localizamos plano para o CPF informado.'. Nenhum botão de envio é necessário, a validação ocorre automaticamente após o preenchimento."
+  "notes": "A validação ocorre automaticamente após o preenchimento. Seletores tolerantes cobrem variações de mensagens de sucesso ou erro."
 }
