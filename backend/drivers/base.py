@@ -9,15 +9,36 @@ from typing import Any, Dict, Optional, Tuple
 
 from playwright.async_api import async_playwright
 
+
+def _resolve_mappings_dir() -> str:
+    # 1) Se o env estiver setado e a pasta existir, usar
+    env_dir = os.environ.get("MAPPINGS_DIR")
+    if env_dir and os.path.isdir(env_dir):
+        return os.path.normpath(env_dir)
+
+    # 2) Caminho relativo ao arquivo atual: backend/drivers/ -> ../docs/mappings
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.normpath(os.path.join(here, "..", "docs", "mappings")),
+        # 3) Alternativas comuns, caso a estrutura mude levemente
+        os.path.normpath(os.path.join(here, "..", "..", "docs", "mappings")),
+        os.path.normpath(os.path.join(os.getcwd(), "backend", "docs", "mappings")),
+        os.path.normpath(os.path.join(os.getcwd(), "docs", "mappings")),
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+
+    # 4) Último recurso: volta para o 1º candidato (mesmo que não exista)
+    return candidates[0]
+
+
+MAPPINGS_DIR = _resolve_mappings_dir()
+_PRINTED_MAPPINGS_DIR = False
+
 FETCH_MIN_DELAY = float(os.getenv("FETCH_MIN_DELAY", "0.5"))
 FETCH_MAX_DELAY = float(os.getenv("FETCH_MAX_DELAY", "1.5"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
-
-# Usa variável de ambiente ou fallback consistente com o diretório do arquivo
-_DEFAULT_MAPPINGS_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs", "mappings")
-)
-MAPPINGS_DIR = os.path.abspath(os.getenv("MAPPINGS_DIR", _DEFAULT_MAPPINGS_DIR))
 
 @dataclass
 class DriverResult:
@@ -39,6 +60,11 @@ class BaseDriver:
         self.operator = operator.lower()
         self.name = self.operator  # <- FALTAVA. O pipeline usa driver.name
         self.mapping = None
+        global _PRINTED_MAPPINGS_DIR
+        if not _PRINTED_MAPPINGS_DIR:
+            print(f"[drivers] using MAPPINGS_DIR: {MAPPINGS_DIR}")
+            _PRINTED_MAPPINGS_DIR = True
+
         self.mapping_path = os.path.join(MAPPINGS_DIR, f"{self.operator}.json")  # nomes em minúsculo
 
         if os.path.exists(self.mapping_path):
