@@ -5,43 +5,73 @@
     {
       "action": "navigate",
       "target": "https://www.sulamericaseguros.com.br/guia-medico",
-      "wait_for": "input[placeholder*='CPF']"
-    },
-    {
-      "action": "fill",
-      "selector": "input[placeholder*='CPF']",
-      "value": "{identifier}"
+      "wait_for": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "timeout_ms": 20000
     },
     {
       "action": "click",
-      "selector": "button[type='submit']"
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceito'), button:has-text('Aceitar'), .sula-cookies button",
+      "optional": true,
+      "timeout_ms": 8000,
+      "force": true,
+      "delay": 0.3
+    },
+    {
+      "action": "click",
+      "selector": ".sula-cookies-close, button:has-text('Fechar'), button:has-text('Entendi')",
+      "optional": true,
+      "timeout_ms": 8000,
+      "force": true,
+      "delay": 0.2
+    },
+    {
+      "action": "fill",
+      "selector": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "value": "{identifier}",
+      "timeout_ms": 15000
+    },
+    {
+      "action": "keypress",
+      "selector": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "key": "Enter",
+      "timeout_ms": 12000
+    },
+    {
+      "action": "click",
+      "selector": "button:has-text('Buscar'), button:has-text('Consultar'), button[type='submit']",
+      "optional": true,
+      "timeout_ms": 15000,
+      "force": true
     },
     {
       "action": "wait_for",
-      "selector": ".resultado-busca, .mensagem-erro, .modal-body",
-      "timeout_ms": 10000
+      "selector": ".resultado-busca, .mensagem-erro, .modal-body, .toast-message, [role='dialog'] .modal-body, .mensagem",
+      "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": ".resultado-busca, .mensagem-erro, .modal-body",
+    "status_selector": ".resultado-busca, .mensagem-erro, .modal-body, .toast-message, .mensagem",
+    "status_timeout_ms": 20000,
     "positive_keywords": [
       "plano",
-      "beneficiário encontrado",
+      "beneficiário",
+      "já possui",
       "ativo",
-      "válido",
-      "selecionar beneficiário"
+      "encontrado"
     ],
     "negative_keywords": [
       "não encontrado",
+      "não possui",
       "inativo",
-      "inválido",
-      "erro"
+      "sem vínculo"
     ],
     "error_keywords": [
       "erro",
       "inválido",
-      "não encontrado"
-    ]
+      "indisponível"
+    ],
+    "plan_selector": ".resultado-busca strong, .resultado-busca .plano, .modal-body strong",
+    "plan_optional": true
   },
-  "notes": "Placeholder temporário. Ajustar quando o HTML real estiver disponível. Espera-se um campo de CPF ou número de beneficiário e uma validação que retorne informações do plano ou uma mensagem de erro similar a 'beneficiário não encontrado'."
+  "notes": "Fluxo ajustado para fechar o banner de cookies e permitir o envio do CNPJ utilizando Enter ou o botão de consulta."
 }
