@@ -5,23 +5,36 @@
     {
       "action": "navigate",
       "target": "https://www.segurosunimed.com.br/portal/guia-medico",
-      "wait_for": "input[placeholder*='CPF' i], input[name*='cpf' i]",
+      "wait_for_any": [
+        "input[placeholder*='cpf' i]",
+        "input[name*='cpf' i]"
+      ],
       "timeout_ms": 20000
     },
     {
       "action": "fill",
-      "selector": "input[placeholder*='CPF' i], input[name*='cpf' i]",
+      "selector": "input[placeholder*='cpf' i]",
       "value": "{identifier}",
       "timeout_ms": 20000
     },
     {
       "action": "wait_for",
-      "selector": "text=/plano/i, text=/não localizamos/i, .s-text.s-text-secondary, .s-input-feedback-invalid",
+      "selector": [
+        "text=/plano/i",
+        "text=/não localizamos/i",
+        ".s-text.s-text-secondary",
+        ".s-input-feedback-invalid"
+      ],
       "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": "text=/plano/i, text=/não localizamos/i, .s-text.s-text-secondary, .s-input-feedback-invalid",
+    "status_selectors": [
+      "text=/plano/i",
+      "text=/não localizamos/i",
+      ".s-text.s-text-secondary",
+      ".s-input-feedback-invalid"
+    ],
     "status_timeout_ms": 20000,
     "status_poll_interval_ms": 300,
     "positive_keywords": [
@@ -44,7 +57,10 @@
       "INVÁLIDO",
       "NÃO LOCALIZAMOS"
     ],
-    "plan_selector": ".s-text.s-text-secondary",
+    "plan_selectors": [
+      ".s-text.s-text-secondary",
+      ".s-input-feedback-invalid"
+    ],
     "plan_optional": true
   },
   "notes": "A validação ocorre automaticamente após o preenchimento. Seletores tolerantes cobrem variações de mensagens de sucesso ou erro."

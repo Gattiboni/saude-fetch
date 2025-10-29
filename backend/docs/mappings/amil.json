@@ -5,7 +5,12 @@
     {
       "action": "navigate",
       "target": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
-      "wait_for": "input[placeholder*='cpf' i], input[name*='cpf' i], input[id*='cpf' i], #cpf_input",
+      "wait_for_any": [
+        "input[placeholder*='cpf' i]",
+        "input[name*='cpf' i]",
+        "input[id*='cpf' i]",
+        "#cpf_input"
+      ],
       "timeout_ms": 20000
     },
     {
@@ -18,24 +23,40 @@
     },
     {
       "action": "fill",
-      "selector": "input[placeholder*='cpf' i], input[name*='cpf' i], input[id*='cpf' i], #cpf_input",
+      "selector": "input[placeholder*='cpf' i]",
       "value": "{identifier}",
       "timeout_ms": 20000
     },
     {
       "action": "keypress",
-      "selector": "input[placeholder*='cpf' i], input[name*='cpf' i], input[id*='cpf' i], #cpf_input",
+      "selector": "input[placeholder*='cpf' i]",
       "key": "Enter",
       "timeout_ms": 12000
     },
     {
       "action": "wait_for",
-      "selector": "text=/plano/i, text=/rede/i, text=/beneficiário/i, text=/campo obrigatório/i, #plan-input_input .rw-input, .input-redux__error span, .input-redux__error",
+      "selector": [
+        "text=/plano/i",
+        "text=/rede/i",
+        "text=/beneficiário/i",
+        "text=/campo obrigatório/i",
+        "#plan-input_input .rw-input",
+        ".input-redux__error span",
+        ".input-redux__error"
+      ],
       "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": "text=/plano/i, text=/rede/i, text=/beneficiário/i, text=/campo obrigatório/i, #plan-input_input .rw-input, .input-redux__error span, .input-redux__error",
+    "status_selectors": [
+      "text=/plano/i",
+      "text=/rede/i",
+      "text=/beneficiário/i",
+      "text=/campo obrigatório/i",
+      "#plan-input_input .rw-input",
+      ".input-redux__error span",
+      ".input-redux__error"
+    ],
     "status_timeout_ms": 20000,
     "status_poll_interval_ms": 400,
     "positive_keywords": [
@@ -59,7 +80,11 @@
       "indisponível",
       "tente novamente"
     ],
-    "plan_selector": "#plan-input_input .rw-input, .rw-dropdown-list-input, text=/plano/i",
+    "plan_selectors": [
+      "#plan-input_input .rw-input",
+      ".rw-dropdown-list-input",
+      "text=/plano/i"
+    ],
     "plan_optional": true
   },
   "notes": "Fluxo ajustado para tolerar variações de placeholders e mensagens inline. Após enviar o CPF com Enter, o componente #plan-input_input exibe o nome do plano; mensagens inline com '.input-redux__error' sinalizam entradas inválidas."

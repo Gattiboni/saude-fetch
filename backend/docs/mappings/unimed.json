@@ -5,23 +5,35 @@
     {
       "action": "navigate",
       "target": "https://www.unimed.coop.br/site/guia-medico#/",
-      "wait_for": "#client-input, input[name*='cpf' i], input[placeholder*='CPF' i]",
+      "wait_for_any": [
+        "#client-input",
+        "input[name*='cpf' i]",
+        "input[placeholder*='cpf' i]"
+      ],
       "timeout_ms": 20000
     },
     {
       "action": "fill",
-      "selector": "#client-input, input[name*='cpf' i], input[placeholder*='CPF' i]",
+      "selector": "#client-input",
       "value": "{identifier}",
       "timeout_ms": 20000
     },
     {
       "action": "wait_for",
-      "selector": "text=/UNIMED/i, #NameIdenticadedUser, .ClientInputWithLabel--text",
+      "selector": [
+        "text=/UNIMED/i",
+        "#NameIdenticadedUser",
+        ".ClientInputWithLabel--text"
+      ],
       "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": "text=/UNIMED/i, #NameIdenticadedUser, .ClientInputWithLabel--text",
+    "status_selectors": [
+      "text=/UNIMED/i",
+      "#NameIdenticadedUser",
+      ".ClientInputWithLabel--text"
+    ],
     "status_timeout_ms": 20000,
     "status_poll_interval_ms": 300,
     "positive_keywords": [
@@ -42,5 +54,5 @@
       "NÃO ENCONTRADO"
     ]
   },
-  "notes": "O preenchimento do CPF dispara automaticamente a verificação. O driver inclui heurísticas adicionais para procurar rótulos UNIMED visíveis próximos ao campo." 
+  "notes": "O preenchimento do CPF dispara automaticamente a verificação. O driver inclui heurísticas adicionais para procurar rótulos UNIMED visíveis próximos ao campo."
 }

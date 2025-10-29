@@ -8,7 +8,7 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from playwright.async_api import async_playwright
 
@@ -327,16 +327,31 @@ class BaseDriver:
             "optional": optional,
         }
 
+        wait_for_any = step.get("wait_for_any") or []
+        if isinstance(wait_for_any, str):
+            wait_for_any = [wait_for_any]
+
         try:
             if action == "navigate":
                 target = step.get("target") or self.mapping.get("url")
                 if target:
                     await page.goto(target)
                 wait_for = step.get("wait_for")
-                if wait_for:
+                if isinstance(wait_for, list):
+                    matched = await self._wait_for_any(
+                        page, wait_for, timeout, state="visible"
+                    )
+                    step_log["matched_wait_for"] = matched
+                elif wait_for:
                     await page.locator(wait_for).first.wait_for(
                         state="visible", timeout=timeout
                     )
+                    step_log["matched_wait_for"] = wait_for
+                if wait_for_any:
+                    matched = await self._wait_for_any(
+                        page, wait_for_any, timeout, state="visible"
+                    )
+                    step_log["matched_wait_for_any"] = matched
             elif action == "fill":
                 selector = step.get("selector")
                 if not selector:
@@ -360,9 +375,19 @@ class BaseDriver:
                 selector = step.get("selector")
                 if not selector:
                     raise ValueError("wait_for action requer 'selector'")
-                await page.locator(selector).first.wait_for(
-                    state=step.get("state", "visible"), timeout=timeout
-                )
+                if isinstance(selector, list):
+                    matched = await self._wait_for_any(
+                        page,
+                        selector,
+                        timeout,
+                        state=step.get("state", "visible"),
+                    )
+                    step_log["matched_wait_for"] = matched
+                else:
+                    await page.locator(selector).first.wait_for(
+                        state=step.get("state", "visible"), timeout=timeout
+                    )
+                    step_log["matched_wait_for"] = selector
             elif action == "wait_for_state":
                 await page.wait_for_load_state(step.get("state", "load"))
             elif action == "sleep":
@@ -383,9 +408,16 @@ class BaseDriver:
         finally:
             if post_wait_selector:
                 try:
-                    await page.locator(post_wait_selector).first.wait_for(
-                        state="visible", timeout=timeout
-                    )
+                    if isinstance(post_wait_selector, list):
+                        matched = await self._wait_for_any(
+                            page, post_wait_selector, timeout, state="visible"
+                        )
+                        step_log["matched_post_wait"] = matched
+                    else:
+                        await page.locator(post_wait_selector).first.wait_for(
+                            state="visible", timeout=timeout
+                        )
+                        step_log["matched_post_wait"] = post_wait_selector
                 except Exception as wait_err:
                     if not optional:
                         step_log.setdefault("warnings", []).append(str(wait_err))
@@ -401,11 +433,42 @@ class BaseDriver:
         else:
             await page.keyboard.press(key)
 
+    async def _wait_for_any(
+        self,
+        page: Any,
+        selectors: Iterable[str],
+        timeout: int,
+        state: str = "visible",
+    ) -> str:
+        selector_list = [candidate for candidate in selectors if candidate]
+        last_error: Optional[Exception] = None
+        for candidate in selector_list:
+            try:
+                await page.locator(candidate).first.wait_for(
+                    state=state, timeout=timeout
+                )
+                return candidate
+            except Exception as exc:
+                last_error = exc
+                continue
+        if last_error:
+            raise TimeoutError(
+                f"Nenhum seletor em {selector_list} foi encontrado: {last_error}"
+            )
+        raise TimeoutError(f"Nenhum seletor válido informado: {selector_list}")
+
     async def _parse_result(
         self, page: Any, parsing: Dict[str, Any]
     ) -> Tuple[str, str, str, Dict[str, Any]]:
-        status_selector = parsing.get("status_selector")
-        if not status_selector:
+        status_selectors = (
+            parsing.get("status_selectors")
+            or parsing.get("status_selector_any")
+            or parsing.get("status_selector")
+        )
+        if isinstance(status_selectors, str):
+            status_selectors = [status_selectors]
+
+        if not status_selectors:
             return "erro", "", "status_selector ausente", {
                 "status_selector": None,
                 "status_timeout_ms": parsing.get("status_timeout_ms", 12000),
@@ -416,27 +479,35 @@ class BaseDriver:
         poll_interval = max(
             0.1, float(parsing.get("status_poll_interval_ms", 300)) / 1000.0
         )
-        locator = page.locator(status_selector)
-        target = locator.first
-        deadline = time.monotonic() + (status_timeout / 1000.0)
         raw_text = ""
+        matched_selector: Optional[str] = None
 
-        while time.monotonic() < deadline:
-            try:
-                await target.wait_for(
-                    state="visible",
-                    timeout=min(1000, max(200, int(poll_interval * 1000))),
-                )
-            except Exception:
-                pass
-            try:
-                candidate = (await target.inner_text()).strip()
-            except Exception:
-                candidate = ""
-            if candidate:
-                raw_text = candidate
+        for selector in status_selectors:
+            locator = page.locator(selector).first
+            deadline = time.monotonic() + (status_timeout / 1000.0)
+            candidate_text = ""
+
+            while time.monotonic() < deadline:
+                try:
+                    await locator.wait_for(
+                        state="visible",
+                        timeout=min(1000, max(200, int(poll_interval * 1000))),
+                    )
+                except Exception:
+                    pass
+                try:
+                    candidate = (await locator.inner_text()).strip()
+                except Exception:
+                    candidate = ""
+                if candidate:
+                    candidate_text = candidate
+                    break
+                await asyncio.sleep(poll_interval)
+
+            if candidate_text:
+                raw_text = candidate_text
+                matched_selector = selector
                 break
-            await asyncio.sleep(poll_interval)
 
         if not raw_text:
             try:
@@ -448,9 +519,14 @@ class BaseDriver:
             except Exception:
                 pass
 
-        print(
-            f"[{self.operator}] texto capturado em '{status_selector}': {raw_text[:200]}"
-        )
+        if matched_selector:
+            print(
+                f"[{self.operator}] texto capturado em '{matched_selector}': {raw_text[:200]}"
+            )
+        else:
+            print(
+                f"[{self.operator}] nenhum texto encontrado para {status_selectors}"
+            )
 
         normalized = normalize_text(raw_text)
         positive = [normalize_text(s) for s in parsing.get("positive_keywords", [])]
@@ -468,22 +544,33 @@ class BaseDriver:
         message = raw_text[:300]
 
         plan = ""
-        plan_selector = parsing.get("plan_selector")
+        plan_selectors = parsing.get("plan_selectors") or parsing.get("plan_selector")
+        if isinstance(plan_selectors, str):
+            plan_selectors = [plan_selectors]
         plan_text = ""
-        if plan_selector:
-            try:
-                plan_locator = page.locator(plan_selector).first
-                await plan_locator.wait_for(
-                    state="visible", timeout=status_timeout
-                )
-                plan_candidate = (await plan_locator.inner_text()).strip()
-                if plan_candidate:
-                    plan_text = plan_candidate
-                    plan = plan_candidate[:300]
-            except Exception as e:
-                if not parsing.get("plan_optional", False):
+        last_error: Optional[Exception] = None
+        if plan_selectors:
+            for selector in plan_selectors:
+                try:
+                    plan_locator = page.locator(selector).first
+                    await plan_locator.wait_for(
+                        state="visible", timeout=status_timeout
+                    )
+                    plan_candidate = (await plan_locator.inner_text()).strip()
+                    if plan_candidate:
+                        plan_text = plan_candidate
+                        plan = plan_candidate[:300]
+                        break
+                except Exception as e:
+                    last_error = e
+                    continue
+            else:
+                if (
+                    not parsing.get("plan_optional", False)
+                    and last_error is not None
+                ):
                     print(
-                        f"[{self.operator}] falha ao capturar plano em '{plan_selector}': {e}"
+                        f"[{self.operator}] falha ao capturar plano em '{plan_selectors}': {last_error}"
                     )
 
         if plan_text:
@@ -494,10 +581,10 @@ class BaseDriver:
             plan = message
 
         debug_info = {
-            "status_selector": status_selector,
+            "status_selector": matched_selector or status_selectors,
             "status_timeout_ms": status_timeout,
             "captured_text": raw_text[:500],
-            "plan_selector": plan_selector,
+            "plan_selector": plan_selectors,
             "plan_text": plan_text[:500] if plan_text else "",
             "decided_status": status,
         }

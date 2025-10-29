@@ -5,7 +5,11 @@
     {
       "action": "navigate",
       "target": "https://www.sulamericaseguros.com.br/guia-medico",
-      "wait_for": "input[id*='cnpj' i], input[name*='cnpj' i], input[placeholder*='cnpj' i]",
+      "wait_for_any": [
+        "input[id*='cnpj' i]",
+        "input[name*='cnpj' i]",
+        "input[placeholder*='cnpj' i]"
+      ],
       "timeout_ms": 20000
     },
     {
@@ -26,13 +30,13 @@
     },
     {
       "action": "fill",
-      "selector": "input[id*='cnpj' i], input[name*='cnpj' i], input[placeholder*='cnpj' i]",
+      "selector": "input[id*='cnpj' i]",
       "value": "{identifier}",
       "timeout_ms": 20000
     },
     {
       "action": "keypress",
-      "selector": "input[id*='cnpj' i], input[name*='cnpj' i], input[placeholder*='cnpj' i]",
+      "selector": "input[id*='cnpj' i]",
       "key": "Enter",
       "timeout_ms": 15000
     },
@@ -45,12 +49,31 @@
     },
     {
       "action": "wait_for",
-      "selector": "text=/situação/i, text=/já possui/i, text=/não possui/i, .resultado-busca, .mensagem-erro, .modal-body, .toast-message, [role='dialog'] .modal-body, .mensagem",
+      "selector": [
+        "text=/situação/i",
+        "text=/já possui/i",
+        "text=/não possui/i",
+        ".resultado-busca",
+        ".mensagem-erro",
+        ".modal-body",
+        ".toast-message",
+        "[role='dialog'] .modal-body",
+        ".mensagem"
+      ],
       "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": "text=/situação/i, text=/já possui/i, text=/não possui/i, .resultado-busca, .mensagem-erro, .modal-body, .toast-message, .mensagem",
+    "status_selectors": [
+      "text=/situação/i",
+      "text=/já possui/i",
+      "text=/não possui/i",
+      ".resultado-busca",
+      ".mensagem-erro",
+      ".modal-body",
+      ".toast-message",
+      ".mensagem"
+    ],
     "status_timeout_ms": 20000,
     "status_poll_interval_ms": 400,
     "positive_keywords": [
@@ -71,7 +94,12 @@
       "INVÁLIDO",
       "INDISPONÍVEL"
     ],
-    "plan_selector": ".resultado-busca strong, .resultado-busca .plano, .modal-body strong, .mensagem-erro",
+    "plan_selectors": [
+      ".resultado-busca strong",
+      ".resultado-busca .plano",
+      ".modal-body strong",
+      ".mensagem-erro"
+    ],
     "plan_optional": true
   },
   "notes": "Fluxo com fechamento de cookies e tolerância para diferentes mensagens exibidas após a consulta do CNPJ."

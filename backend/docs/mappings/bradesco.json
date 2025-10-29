@@ -5,7 +5,11 @@
     {
       "action": "navigate",
       "target": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
-      "wait_for": "input#searchCpfOrCard, input[name*='cpf' i], input[placeholder*='cpf' i]",
+      "wait_for_any": [
+        "input#searchCpfOrCard",
+        "input[name='searchCpfOrCard']",
+        "input[placeholder*='cpf' i]"
+      ],
       "timeout_ms": 20000
     },
     {
@@ -18,24 +22,42 @@
     },
     {
       "action": "fill",
-      "selector": "input#searchCpfOrCard, input[name*='cpf' i], input[placeholder*='cpf' i]",
+      "selector": "input#searchCpfOrCard",
       "value": "{identifier}",
       "timeout_ms": 20000
     },
     {
       "action": "keypress",
-      "selector": "input#searchCpfOrCard, input[name*='cpf' i], input[placeholder*='cpf' i]",
+      "selector": "input#searchCpfOrCard",
       "key": "Enter",
       "timeout_ms": 15000
     },
     {
       "action": "wait_for",
-      "selector": "text=/beneficiário/i, text=/cartão/i, text=/campo obrigatório/i, text=/cpf inválido/i, .bs-modal__body, .bs-alert__title, .input-redux__error span, .input-redux__error",
+      "selector": [
+        "text=/beneficiário/i",
+        "text=/cartão/i",
+        "text=/campo obrigatório/i",
+        "text=/cpf inválido/i",
+        ".bs-modal__body",
+        ".bs-alert__title",
+        ".input-redux__error span",
+        ".input-redux__error"
+      ],
       "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": "text=/beneficiário/i, text=/cartão/i, text=/campo obrigatório/i, text=/cpf inválido/i, .bs-modal__body, .bs-alert__title, .input-redux__error span, .input-redux__error",
+    "status_selectors": [
+      "text=/beneficiário/i",
+      "text=/cartão/i",
+      "text=/campo obrigatório/i",
+      "text=/cpf inválido/i",
+      ".bs-modal__body",
+      ".bs-alert__title",
+      ".input-redux__error span",
+      ".input-redux__error"
+    ],
     "status_timeout_ms": 20000,
     "status_poll_interval_ms": 400,
     "positive_keywords": [
@@ -59,8 +81,12 @@
       "não encontrado",
       "tente novamente"
     ],
-    "plan_selector": ".bs-modal__body, .bs-alert__content, .input-redux__error span",
+    "plan_selectors": [
+      ".bs-modal__body",
+      ".bs-alert__content",
+      ".input-redux__error span"
+    ],
     "plan_optional": true
   },
-  "notes": "Após enviar o CPF com Enter, modais e mensagens inline exibem o resultado. Os seletores toleram variações de modal e mensagens de erro." 
+  "notes": "Após enviar o CPF com Enter, modais e mensagens inline exibem o resultado. Os seletores toleram variações de modal e mensagens de erro."
 }
