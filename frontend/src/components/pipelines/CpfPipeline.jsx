@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { apiFetch, API_BASE } from '../../App'
 
-function ProgressBar({ current, total }){
+function ProgressBar({ current, total, etaSeconds }){
   const pct = total ? Math.round((current/total)*100) : 0
+  const etaLabel = total && current < total && etaSeconds > 0 ? ` • ETA ~${etaSeconds}s` : ''
   return (
     <div className="space-y-1">
-      <div className="label" data-testid="cpf-progress-label">{total? `Processando ${current} de ${total}…` : 'Aguardando envio'}</div>
+      <div className="label" data-testid="cpf-progress-label">
+        {total ? `Processando ${current} de ${total} (${pct}%)${etaLabel}` : 'Aguardando envio'}
+      </div>
       <div className="w-full h-2 bg-gray-800 rounded" data-testid="cpf-progress-bar">
         <div className="h-2 bg-blue-500 rounded" style={{ width: `${pct}%`, transition: 'width .3s' }} />
       </div>
@@ -20,6 +23,8 @@ export default function CpfPipeline(){
   const [job, setJob] = useState(null)
   const [status, setStatus] = useState(null) // latest job status
   const [logText, setLogText] = useState('')
+  const [startTime, setStartTime] = useState(null)
+  const [avgTime, setAvgTime] = useState(0)
 
   const uploadingDisabled = useMemo(() => !file || creating, [file, creating])
 
@@ -48,6 +53,8 @@ export default function CpfPipeline(){
       const j = await apiFetch('/api/jobs', { method:'POST', body: fd })
       setJob(j)
       setStatus(j)
+      setStartTime(Date.now())
+      setAvgTime(0)
     }catch(err){ setError('Erro ao enviar arquivo: ' + (err?.message||err)) }
     finally{ setCreating(false); setFile(null) }
   }
@@ -69,6 +76,7 @@ export default function CpfPipeline(){
             const text = await res.text()
             setLogText(text)
           }catch(e){ /* opcional */ }
+          setStartTime(null)
           return
         }
       }catch(e){ /* ignore, re-tenta */ }
@@ -77,6 +85,23 @@ export default function CpfPipeline(){
     tick()
     return ()=>{ stopped = true; timer && clearTimeout(timer) }
   }, [job?.id])
+
+  useEffect(()=>{
+    if (!job?.id){
+      setStartTime(null)
+      setAvgTime(0)
+    }
+  }, [job?.id])
+
+  useEffect(()=>{
+    if (!startTime || !status?.processed || !status?.total) return
+    if (status.processed <= 0) return
+    if (status.status !== 'processing') return
+    const elapsed = (Date.now() - startTime) / 1000
+    if (elapsed > 0){
+      setAvgTime(elapsed / status.processed)
+    }
+  }, [status?.processed, status?.status, startTime])
 
   const downloadXlsx = async () => {
     if (!status?.id) return
@@ -90,6 +115,7 @@ export default function CpfPipeline(){
 
   const current = status?.processed || 0
   const total = status?.total || 0
+  const etaSeconds = total && avgTime > 0 ? Math.max(0, Math.round((total - current) * avgTime)) : 0
 
   return (
     <div className="card space-y-4" data-testid="cpf-pipeline">
@@ -102,7 +128,7 @@ export default function CpfPipeline(){
         <button className="btn" data-testid="cpf-submit" disabled={uploadingDisabled}>{creating? 'Enviando…' : 'Enviar e processar'}</button>
       </form>
 
-      <ProgressBar current={current} total={total} />
+      <ProgressBar current={current} total={total} etaSeconds={etaSeconds} />
 
       {status && status.status !== 'processing' && (
         <div className="space-y-2" data-testid="cpf-summary">
