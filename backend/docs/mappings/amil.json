@@ -26,12 +26,13 @@
     },
     {
       "action": "wait_for",
-      "selector": "#plan-input_input, .input-redux__error",
+      "selector": "#plan-input_input .rw-input, .input-redux__error span, .input-redux__error",
       "timeout_ms": 15000
     }
   ],
   "result_parsing": {
-    "status_selector": "#plan-input_input .rw-input, .input-redux__error",
+    "status_selector": "#plan-input_input .rw-input, .input-redux__error span, .input-redux__error",
+    "status_timeout_ms": 15000,
     "positive_keywords": [
       "rede",
       "plano",
@@ -44,8 +45,7 @@
       "campo obrigatório",
       "cpf inválido",
       "não encontramos",
-      "preencha",
-      "erro"
+      "preencha"
     ],
     "error_keywords": [
       "erro",

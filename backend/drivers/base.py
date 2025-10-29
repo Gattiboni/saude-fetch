@@ -188,10 +188,12 @@ class BaseDriver:
                     raise ValueError("click action requer 'selector'")
                 await page.click(selector, timeout=timeout)
             elif action == "keypress":
+                key = step.get("key", "Enter")
                 focus_selector = step.get("selector")
                 if focus_selector:
-                    await page.focus(focus_selector)
-                await page.keyboard.press(step.get("key", "Enter"))
+                    await page.press(focus_selector, key, timeout=timeout)
+                else:
+                    await page.keyboard.press(key)
             elif action == "wait_for":
                 selector = step.get("selector")
                 if not selector:
@@ -217,8 +219,15 @@ class BaseDriver:
         if not status_selector:
             return "erro", "", "status_selector ausente"
 
+        status_timeout = parsing.get("status_timeout_ms", 12000)
+        locator = page.locator(status_selector)
+        target = locator.first
         try:
-            raw_text = (await page.inner_text(status_selector)).strip()
+            await target.wait_for(state="visible", timeout=status_timeout)
+        except Exception:
+            pass
+        try:
+            raw_text = (await target.inner_text()).strip()
         except Exception:
             raw_text = ""
 
@@ -246,7 +255,9 @@ class BaseDriver:
         plan_selector = parsing.get("plan_selector")
         if plan_selector:
             try:
-                plan_text = (await page.inner_text(plan_selector)).strip()
+                plan_locator = page.locator(plan_selector).first
+                await plan_locator.wait_for(state="visible", timeout=status_timeout)
+                plan_text = (await plan_locator.inner_text()).strip()
                 plan = plan_text[:300]
             except Exception as e:
                 if not parsing.get("plan_optional", False):

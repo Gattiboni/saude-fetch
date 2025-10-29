@@ -26,12 +26,13 @@
     },
     {
       "action": "wait_for",
-      "selector": "#bs-modal-selecioneBeneficiario, .bs-modal__container, .bs-alert__content, .input-redux__error",
+      "selector": "#bs-modal-selecioneBeneficiario .bs-alert__title, #bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__content, .bs-modal__body, .input-redux__error span, .input-redux__error",
       "timeout_ms": 15000
     }
   ],
   "result_parsing": {
-    "status_selector": "#bs-modal-selecioneBeneficiario .bs-alert__title, #bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__content, .input-redux__error",
+    "status_selector": "#bs-modal-selecioneBeneficiario .bs-alert__title, #bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__content, .bs-modal__body, .input-redux__error span, .input-redux__error",
+    "status_timeout_ms": 15000,
     "positive_keywords": [
       "selecione o beneficiário",
       "escolha o beneficiário",
@@ -52,7 +53,7 @@
       "não encontrado",
       "tente novamente"
     ],
-    "plan_selector": "#bs-modal-selecioneBeneficiario .bs-alert__content",
+    "plan_selector": "#bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__content",
     "plan_optional": true
   },
   "notes": "O campo #searchCpfOrCard recebe o CPF e, após pressionar Enter, abre o modal #bs-modal-selecioneBeneficiario com o conteúdo da busca. Para respostas negativas, mensagens de erro são exibidas em modais ou abaixo do campo com classe .input-redux__error."
