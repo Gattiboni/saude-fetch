@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import random
+import re
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -43,7 +45,7 @@ ERRORS_DIR = os.path.normpath(
 FETCH_MIN_DELAY = float(os.getenv("FETCH_MIN_DELAY", "0.5"))
 FETCH_MAX_DELAY = float(os.getenv("FETCH_MAX_DELAY", "1.5"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
-TIMEOUT_SELECTOR_MS = int(os.getenv("TIMEOUT_SELECTOR_MS", "12000"))
+TIMEOUT_SELECTOR_MS = int(os.getenv("TIMEOUT_SELECTOR_MS", "20000"))
 BLOCK_SLEEP_SECONDS = int(os.getenv("BLOCK_SLEEP_SECONDS", "120"))
 DEFAULT_BLOCK_KEYWORDS = [
     kw.strip().lower()
@@ -56,6 +58,15 @@ logger = logging.getLogger(__name__)
 
 class BlockedRequestError(Exception):
     """Raised when the remote website indicates an anti-bot block."""
+
+
+def normalize_text(value: str) -> str:
+    """Normaliza texto removendo espaços repetidos e padronizando para maiúsculas."""
+    if not value:
+        return ""
+    cleaned = value.replace("\u00A0", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip().upper()
 
 
 @dataclass
@@ -401,35 +412,58 @@ class BaseDriver:
                 "captured_text": "",
             }
 
-        status_timeout = parsing.get("status_timeout_ms", 12000)
+        status_timeout = parsing.get("status_timeout_ms", TIMEOUT_SELECTOR_MS)
+        poll_interval = max(
+            0.1, float(parsing.get("status_poll_interval_ms", 300)) / 1000.0
+        )
         locator = page.locator(status_selector)
         target = locator.first
-        try:
-            await target.wait_for(state="visible", timeout=status_timeout)
-        except Exception:
-            pass
-        try:
-            raw_text = (await target.inner_text()).strip()
-        except Exception:
-            raw_text = ""
+        deadline = time.monotonic() + (status_timeout / 1000.0)
+        raw_text = ""
+
+        while time.monotonic() < deadline:
+            try:
+                await target.wait_for(
+                    state="visible",
+                    timeout=min(1000, max(200, int(poll_interval * 1000))),
+                )
+            except Exception:
+                pass
+            try:
+                candidate = (await target.inner_text()).strip()
+            except Exception:
+                candidate = ""
+            if candidate:
+                raw_text = candidate
+                break
+            await asyncio.sleep(poll_interval)
+
+        if not raw_text:
+            try:
+                page_html = (await page.content()).lower()
+                if "captcha" in page_html or "bloque" in page_html:
+                    raise BlockedRequestError("bloqueio detectado (captcha)")
+            except BlockedRequestError:
+                raise
+            except Exception:
+                pass
 
         print(
             f"[{self.operator}] texto capturado em '{status_selector}': {raw_text[:200]}"
         )
 
-        lowered = raw_text.lower()
-        pos = [s.lower() for s in parsing.get("positive_keywords", [])]
-        neg = [s.lower() for s in parsing.get("negative_keywords", [])]
-        err = [s.lower() for s in parsing.get("error_keywords", [])]
+        normalized = normalize_text(raw_text)
+        positive = [normalize_text(s) for s in parsing.get("positive_keywords", [])]
+        negative = [normalize_text(s) for s in parsing.get("negative_keywords", [])]
+        errors = [normalize_text(s) for s in parsing.get("error_keywords", [])]
 
-        if lowered and any(k in lowered for k in pos):
+        status = "indefinido"
+        if normalized and any(k and k in normalized for k in positive):
             status = "ativo"
-        elif lowered and any(k in lowered for k in neg):
+        elif normalized and any(k and k in normalized for k in negative):
             status = "inativo"
-        elif lowered and any(k in lowered for k in err):
+        elif normalized and any(k and k in normalized for k in errors):
             status = "erro"
-        else:
-            status = "indefinido"
 
         message = raw_text[:300]
 
@@ -439,15 +473,24 @@ class BaseDriver:
         if plan_selector:
             try:
                 plan_locator = page.locator(plan_selector).first
-                await plan_locator.wait_for(state="visible", timeout=status_timeout)
-                plan_text = (await plan_locator.inner_text()).strip()
-                plan = plan_text[:300]
+                await plan_locator.wait_for(
+                    state="visible", timeout=status_timeout
+                )
+                plan_candidate = (await plan_locator.inner_text()).strip()
+                if plan_candidate:
+                    plan_text = plan_candidate
+                    plan = plan_candidate[:300]
             except Exception as e:
                 if not parsing.get("plan_optional", False):
-                    print(f"[{self.operator}] falha ao capturar plano em '{plan_selector}': {e}")
-        if plan and status in {"indefinido", "inativo"}:
-            status = "ativo"
-        if not plan and status == "ativo" and message:
+                    print(
+                        f"[{self.operator}] falha ao capturar plano em '{plan_selector}': {e}"
+                    )
+
+        if plan_text:
+            normalized_plan = normalize_text(plan_text)
+            if normalized_plan and status in {"indefinido", "inativo"}:
+                status = "ativo"
+        elif status == "ativo" and message:
             plan = message
 
         debug_info = {

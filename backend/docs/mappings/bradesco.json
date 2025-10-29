@@ -5,40 +5,46 @@
     {
       "action": "navigate",
       "target": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
-      "wait_for": "#searchCpfOrCard",
-      "timeout_ms": 15000
+      "wait_for": "input#searchCpfOrCard, input[name*='cpf' i], input[placeholder*='cpf' i]",
+      "timeout_ms": 20000
     },
     {
       "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button[aria-label*='aceitar']",
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar')",
       "optional": true,
-      "delay": 0.5
+      "timeout_ms": 10000,
+      "force": true,
+      "delay": 0.3
     },
     {
       "action": "fill",
-      "selector": "#searchCpfOrCard",
-      "value": "{identifier}"
+      "selector": "input#searchCpfOrCard, input[name*='cpf' i], input[placeholder*='cpf' i]",
+      "value": "{identifier}",
+      "timeout_ms": 20000
     },
     {
       "action": "keypress",
-      "selector": "#searchCpfOrCard",
-      "key": "Enter"
+      "selector": "input#searchCpfOrCard, input[name*='cpf' i], input[placeholder*='cpf' i]",
+      "key": "Enter",
+      "timeout_ms": 15000
     },
     {
       "action": "wait_for",
-      "selector": "#bs-modal-selecioneBeneficiario .bs-alert__title, #bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__content, .bs-modal__body, .input-redux__error span, .input-redux__error",
-      "timeout_ms": 15000
+      "selector": "text=/beneficiário/i, text=/cartão/i, text=/campo obrigatório/i, text=/cpf inválido/i, .bs-modal__body, .bs-alert__title, .input-redux__error span, .input-redux__error",
+      "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": "#bs-modal-selecioneBeneficiario .bs-alert__title, #bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__content, .bs-modal__body, .input-redux__error span, .input-redux__error",
-    "status_timeout_ms": 15000,
+    "status_selector": "text=/beneficiário/i, text=/cartão/i, text=/campo obrigatório/i, text=/cpf inválido/i, .bs-modal__body, .bs-alert__title, .input-redux__error span, .input-redux__error",
+    "status_timeout_ms": 20000,
+    "status_poll_interval_ms": 400,
     "positive_keywords": [
       "selecione o beneficiário",
       "escolha o beneficiário",
       "beneficiário encontrado",
       "cartão",
-      "plano"
+      "plano",
+      "ativo"
     ],
     "negative_keywords": [
       "beneficiário não encontrado",
@@ -53,8 +59,8 @@
       "não encontrado",
       "tente novamente"
     ],
-    "plan_selector": "#bs-modal-selecioneBeneficiario .bs-alert__content, .bs-modal__container .bs-alert__content",
+    "plan_selector": ".bs-modal__body, .bs-alert__content, .input-redux__error span",
     "plan_optional": true
   },
-  "notes": "O campo #searchCpfOrCard recebe o CPF e, após pressionar Enter, abre o modal #bs-modal-selecioneBeneficiario com o conteúdo da busca. Para respostas negativas, mensagens de erro são exibidas em modais ou abaixo do campo com classe .input-redux__error."
+  "notes": "Após enviar o CPF com Enter, modais e mensagens inline exibem o resultado. Os seletores toleram variações de modal e mensagens de erro." 
 }

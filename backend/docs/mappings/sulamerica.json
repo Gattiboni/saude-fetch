@@ -5,20 +5,20 @@
     {
       "action": "navigate",
       "target": "https://www.sulamericaseguros.com.br/guia-medico",
-      "wait_for": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "wait_for": "input[id*='cnpj' i], input[name*='cnpj' i], input[placeholder*='cnpj' i]",
       "timeout_ms": 20000
     },
     {
       "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceito'), button:has-text('Aceitar'), .sula-cookies button",
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], .sula-cookies button:has-text('Aceito'), .sula-cookies button:has-text('Aceitar'), .sula-cookies button:has-text('Entendi')",
       "optional": true,
-      "timeout_ms": 8000,
+      "timeout_ms": 12000,
       "force": true,
       "delay": 0.3
     },
     {
       "action": "click",
-      "selector": ".sula-cookies-close, button:has-text('Fechar'), button:has-text('Entendi')",
+      "selector": ".sula-cookies-close, button:has-text('Fechar'), button:has-text('Entendi'), button:has-text('Prosseguir')",
       "optional": true,
       "timeout_ms": 8000,
       "force": true,
@@ -26,15 +26,15 @@
     },
     {
       "action": "fill",
-      "selector": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "selector": "input[id*='cnpj' i], input[name*='cnpj' i], input[placeholder*='cnpj' i]",
       "value": "{identifier}",
-      "timeout_ms": 15000
+      "timeout_ms": 20000
     },
     {
       "action": "keypress",
-      "selector": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "selector": "input[id*='cnpj' i], input[name*='cnpj' i], input[placeholder*='cnpj' i]",
       "key": "Enter",
-      "timeout_ms": 12000
+      "timeout_ms": 15000
     },
     {
       "action": "click",
@@ -45,33 +45,34 @@
     },
     {
       "action": "wait_for",
-      "selector": ".resultado-busca, .mensagem-erro, .modal-body, .toast-message, [role='dialog'] .modal-body, .mensagem",
+      "selector": "text=/situação/i, text=/já possui/i, text=/não possui/i, .resultado-busca, .mensagem-erro, .modal-body, .toast-message, [role='dialog'] .modal-body, .mensagem",
       "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": ".resultado-busca, .mensagem-erro, .modal-body, .toast-message, .mensagem",
+    "status_selector": "text=/situação/i, text=/já possui/i, text=/não possui/i, .resultado-busca, .mensagem-erro, .modal-body, .toast-message, .mensagem",
     "status_timeout_ms": 20000,
+    "status_poll_interval_ms": 400,
     "positive_keywords": [
-      "plano",
-      "beneficiário",
-      "já possui",
-      "ativo",
-      "encontrado"
+      "PLANO",
+      "BENEFICIÁRIO",
+      "JÁ POSSUI",
+      "ATIVO",
+      "ENCONTRADO"
     ],
     "negative_keywords": [
-      "não encontrado",
-      "não possui",
-      "inativo",
-      "sem vínculo"
+      "NÃO ENCONTRADO",
+      "NÃO POSSUI",
+      "INATIVO",
+      "SEM VÍNCULO"
     ],
     "error_keywords": [
-      "erro",
-      "inválido",
-      "indisponível"
+      "ERRO",
+      "INVÁLIDO",
+      "INDISPONÍVEL"
     ],
-    "plan_selector": ".resultado-busca strong, .resultado-busca .plano, .modal-body strong",
+    "plan_selector": ".resultado-busca strong, .resultado-busca .plano, .modal-body strong, .mensagem-erro",
     "plan_optional": true
   },
-  "notes": "Fluxo ajustado para fechar o banner de cookies e permitir o envio do CNPJ utilizando Enter ou o botão de consulta."
+  "notes": "Fluxo com fechamento de cookies e tolerância para diferentes mensagens exibidas após a consulta do CNPJ."
 }
