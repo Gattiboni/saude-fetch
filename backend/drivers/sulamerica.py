@@ -1,13 +1,6 @@
-from .base import BaseDriver, DriverResult
+from .base import BaseDriver
+
 
 class SulamericaDriver(BaseDriver):
     def __init__(self):
-        super().__init__("sulamerica")
-
-    async def _perform(self, identifier, id_type):
-        # placeholder, se o CNPJ ainda é quem usa SulAmérica real
-        return DriverResult(
-            operator="sulamerica",
-            status="pending",
-            message="Driver SulAmérica não implementado para CPF."
-        )
+        super().__init__("sulamerica", supported_id_types=("cnpj",))
