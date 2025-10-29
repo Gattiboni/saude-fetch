@@ -1,47 +1,121 @@
 {
   "operator": "sulamerica",
-  "url": "https://www.sulamericaseguros.com.br/guia-medico",
+  "url": "https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx",
   "steps": [
     {
       "action": "navigate",
-      "target": "https://www.sulamericaseguros.com.br/guia-medico",
-      "wait_for": "input[placeholder*='CPF']"
+      "target": "https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx",
+      "wait_for": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtUsername_wtInpCodCPFVendedor"
     },
     {
       "action": "fill",
-      "selector": "input[placeholder*='CPF']",
+      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtUsername_wtInpCodCPFVendedor",
+      "value": "138.213.497-51"
+    },
+    {
+      "action": "fill",
+      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtUsername_ValidationTools_wtWbbValEmail_block_wtInputToValidate_wtInpEmlVendedor",
+      "value": "leonardofarinazzo.ygg@gmail.com"
+    },
+    {
+      "action": "fill",
+      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtPassword_wtInpPassword",
+      "value": "Odisseia1!"
+    },
+    {
+      "action": "click",
+      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtPassword_wt7_wt4"
+    },
+    {
+      "action": "click",
+      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtAction_wtBtnLogin3",
+      "wait_for_navigation": true
+    },
+    {
+      "action": "select",
+      "selector": "#VanillaTheme_wtLayLoginVendedorEV_block_wtMainContent_WebPatterns_wt5_block_wtUsername_wtCmbSelEV",
+      "value": "3077390"
+    },
+    {
+      "action": "click",
+      "selector": "#VanillaTheme_wtLayLoginVendedorEV_block_wtMainContent_wtBtnCotador",
+      "wait_for_navigation": true
+    },
+    {
+      "action": "click",
+      "selector": "#VanillaTheme_wtLay_TelaPrincipal_block_wtMainContent_wt7_wtButtonNewPrice",
+      "wait_for_navigation": true
+    },
+    {
+      "action": "fill",
+      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_wtInpQuantidadeVidasSaude",
+      "value": "7"
+    },
+    {
+      "action": "scroll_into_view",
+      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_WebPatterns_wtMdlCrossSell_block_wtActions_wtBtnIncVid"
+    },
+    {
+      "action": "click",
+      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_WebPatterns_wtMdlCrossSell_block_wtActions_wtBtnIncVid"
+    },
+    {
+      "action": "click",
+      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_wtBtnAvancarSemSaudeOdonto2",
+      "wait_for_navigation": true
+    },
+    {
+      "action": "fill",
+      "selector": "#VanillaTheme_wt82_block_wtMainContent_WebPatterns_wt32_block_wtColumn2_wtInpCNPJ",
       "value": "{identifier}"
     },
     {
       "action": "click",
-      "selector": "button[type='submit']"
+      "selector": "#VanillaTheme_wt82_block_wtMainContent_WebPatterns_wt32_block_wtColumn2_wtBtnAvancar",
+      "wait_for": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2, .ModalContainer"
     },
     {
-      "action": "wait_for",
-      "selector": ".resultado-busca, .mensagem-erro, .modal-body",
-      "timeout_ms": 10000
+      "action": "conditional",
+      "condition_selector": ".ModalContainer",
+      "if_true": [
+        {
+          "action": "click",
+          "selector": "button, input[value*='Começo do preenchimento']"
+        },
+        {
+          "action": "click",
+          "selector": "a#VanillaTheme_wt235_block_wtHeader_wt219_wtLnkVoltar2 img"
+        }
+      ],
+      "if_false": [
+        {
+          "action": "extract",
+          "selectors": {
+            "cnpj": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpCNPJ",
+            "razao_social": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpRazaoSocial",
+            "nome_fantasia": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomeFantasia",
+            "cnae": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpCNAE",
+            "natureza_juridica": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNatJur",
+            "cep": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNumCEP",
+            "endereco": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomLogradouro",
+            "numero": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpDscNumLogradouro",
+            "bairro": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomBairro",
+            "cidade": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomCidade",
+            "uf": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpSigUF"
+          }
+        },
+        {
+          "action": "click",
+          "selector": "a#VanillaTheme_wt235_block_wtHeader_wt219_wtLnkVoltar2 img"
+        }
+      ]
     }
   ],
   "result_parsing": {
-    "status_selector": ".resultado-busca, .mensagem-erro, .modal-body",
-    "positive_keywords": [
-      "plano",
-      "beneficiário encontrado",
-      "ativo",
-      "válido",
-      "selecionar beneficiário"
-    ],
-    "negative_keywords": [
-      "não encontrado",
-      "inativo",
-      "inválido",
-      "erro"
-    ],
-    "error_keywords": [
-      "erro",
-      "inválido",
-      "não encontrado"
-    ]
+    "status_selector": ".ModalContainer, #VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2",
+    "positive_keywords": ["Já possui plano", "CNPJ INFORMADO JÁ POSSUI PLANO"],
+    "negative_keywords": ["Dados do Cliente", "Informações da empresa", "Razão social"],
+    "error_keywords": ["Erro", "Falha", "Sessão expirada", "Acesso negado"]
   },
-  "notes": "Placeholder temporário. Ajustar quando o HTML real estiver disponível. Espera-se um campo de CPF ou número de beneficiário e uma validação que retorne informações do plano ou uma mensagem de erro similar a 'beneficiário não encontrado'."
+  "notes": "Fluxo completo de automação SulAmérica ajustado conforme mapeamento real do portal de cotação. Inclui login com credenciais fixas, seleção da corretora UNICLASS, navegação até tela de CNPJ, captura de dados da empresa ou retorno de status de plano existente."
 }
