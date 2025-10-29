@@ -1,7 +1,15 @@
 {
-  "operator": "seguros_unimed",
-  "url": "https://www.segurosunimed.com.br/portal/guia-medico",
+  "meta": { "provider": "seguros-unimed", "task": "cpf-eligibility", "version": "1.0.0" },
+  "navigate": {
+    "url": "https://www.segurosunimed.com.br/guia-medico/",
+    "expand_recursively": true,
+    "reuse_page": true
+  },
+  "inputs": {
+    "cpf": { "selector": "input[placeholder='Informe o CPF ou número do cartão']", "type": "text", "mask": "cpf", "submit": "none", "clear": true }
+  },
   "steps": [
+    { "wait": { "ms": 3000 } },
     {
       "action": "navigate",
       "target": "https://www.segurosunimed.com.br/portal/guia-medico",

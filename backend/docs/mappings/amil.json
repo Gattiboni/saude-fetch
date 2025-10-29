@@ -1,6 +1,14 @@
 {
-  "operator": "amil",
-  "url": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
+  "meta": { "provider": "amil", "task": "cpf-eligibility", "version": "1.0.0" },
+  "navigate": {
+    "url": "https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada",
+    "expand_recursively": true,
+    "reuse_page": true,
+    "accept_cookies": { "selector": "#onetrust-accept-btn-handler", "action": "click", "optional": true, "timeout_ms": 5000 }
+  },
+  "inputs": {
+    "cpf": { "selector": "#cpf_input", "type": "text", "mask": "cpf", "submit": "enter", "clear": true, "timeout_ms": 120000 }
+  },
   "steps": [
     {
       "action": "navigate",
