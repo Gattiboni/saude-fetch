@@ -45,6 +45,11 @@ FETCH_MAX_DELAY = float(os.getenv("FETCH_MAX_DELAY", "1.5"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
 TIMEOUT_SELECTOR_MS = int(os.getenv("TIMEOUT_SELECTOR_MS", "12000"))
 BLOCK_SLEEP_SECONDS = int(os.getenv("BLOCK_SLEEP_SECONDS", "120"))
+DEFAULT_BLOCK_KEYWORDS = [
+    kw.strip().lower()
+    for kw in os.getenv("BLOCK_KEYWORDS", "429,too many requests").split(",")
+    if kw.strip()
+]
 
 logger = logging.getLogger(__name__)
 
@@ -244,10 +249,21 @@ class BaseDriver:
             for idx, step in enumerate(steps):
                 await self._run_step(page, step, identifier, run_debug, idx)
 
-            html_snapshot = (await page.content()).lower()
-            if "captcha" in html_snapshot or "429" in html_snapshot:
-                run_debug.setdefault("block_detected", True)
-                raise BlockedRequestError("captcha ou limitação detectada na página")
+            block_indicators = [
+                str(item).lower()
+                for item in self.mapping.get("block_indicators", [])
+                if str(item).strip()
+            ]
+            if not block_indicators:
+                block_indicators = list(DEFAULT_BLOCK_KEYWORDS)
+
+            if block_indicators:
+                html_snapshot = (await page.content()).lower()
+                if any(indicator in html_snapshot for indicator in block_indicators):
+                    run_debug.setdefault("block_detected", True)
+                    raise BlockedRequestError(
+                        "indício de bloqueio detectado na página"
+                    )
 
             status, plan, message, parse_debug = await self._parse_result(page, parsing)
             run_debug.update(parse_debug)
@@ -320,7 +336,12 @@ class BaseDriver:
                 selector = step.get("selector")
                 if not selector:
                     raise ValueError("click action requer 'selector'")
-                await page.click(selector, timeout=timeout)
+                click_kwargs = {"timeout": timeout}
+                if step.get("force"):
+                    click_kwargs["force"] = True
+                if step.get("no_wait_after") is not None:
+                    click_kwargs["no_wait_after"] = bool(step.get("no_wait_after"))
+                await page.click(selector, **click_kwargs)
             elif action == "keypress":
                 key = step.get("key", "Enter")
                 await self.keypress(page, step.get("selector"), key=key, timeout=timeout)

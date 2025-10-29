@@ -118,7 +118,7 @@ class DriverManager:
                                 cached_data = await cache.get(driver.name, identifier)
                             except Exception:
                                 cached_data = None
-                            if cached_data:
+                            if cached_data and self._is_valid_cached_data(cached_data):
                                 cached_result = DriverResult(
                                     operator=driver.operator,
                                     status=cached_data.get("status", "erro"),
@@ -165,7 +165,7 @@ class DriverManager:
                         duration = time.perf_counter() - start
                         results.append(result)
 
-                        if cache is not None:
+                        if cache is not None and self._should_cache_result(result):
                             try:
                                 await cache.set(
                                     driver.name,
@@ -197,6 +197,46 @@ class DriverManager:
         except Exception as exc:
             print(f"[{driver.operator}] erro no navegador persistente: {exc}")
         return results
+
+    @staticmethod
+    def _is_valid_cached_data(data: Dict[str, object]) -> bool:
+        status = str(data.get("status", "")).lower()
+        if status in {"erro", "invalid", "indefinido"}:
+            return False
+
+        message = str(data.get("message", "")).lower()
+        if "captcha" in message or "bloque" in message:
+            return False
+
+        debug = data.get("debug")
+        if isinstance(debug, dict):
+            if debug.get("block_detected"):
+                return False
+            debug_error = str(debug.get("error", "")).lower()
+            if "captcha" in debug_error or "bloque" in debug_error:
+                return False
+
+        return True
+
+    @staticmethod
+    def _should_cache_result(result: DriverResult) -> bool:
+        status = str(result.status or "").lower()
+        if status in {"erro", "invalid", "indefinido"}:
+            return False
+
+        message = str(result.message or "").lower()
+        if "captcha" in message or "bloque" in message:
+            return False
+
+        debug = result.debug
+        if isinstance(debug, dict):
+            if debug.get("block_detected"):
+                return False
+            debug_error = str(debug.get("error", "")).lower()
+            if "captcha" in debug_error or "bloque" in debug_error:
+                return False
+
+        return True
 
 
 manager = DriverManager()

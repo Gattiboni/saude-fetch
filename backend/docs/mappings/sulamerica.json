@@ -4,118 +4,74 @@
   "steps": [
     {
       "action": "navigate",
-      "target": "https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx",
-      "wait_for": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtUsername_wtInpCodCPFVendedor"
+      "target": "https://www.sulamericaseguros.com.br/guia-medico",
+      "wait_for": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "timeout_ms": 20000
+    },
+    {
+      "action": "click",
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceito'), button:has-text('Aceitar'), .sula-cookies button",
+      "optional": true,
+      "timeout_ms": 8000,
+      "force": true,
+      "delay": 0.3
+    },
+    {
+      "action": "click",
+      "selector": ".sula-cookies-close, button:has-text('Fechar'), button:has-text('Entendi')",
+      "optional": true,
+      "timeout_ms": 8000,
+      "force": true,
+      "delay": 0.2
     },
     {
       "action": "fill",
-      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtUsername_wtInpCodCPFVendedor",
-      "value": "138.213.497-51"
+      "selector": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "value": "{identifier}",
+      "timeout_ms": 15000
     },
     {
-      "action": "fill",
-      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtUsername_ValidationTools_wtWbbValEmail_block_wtInputToValidate_wtInpEmlVendedor",
-      "value": "leonardofarinazzo.ygg@gmail.com"
-    },
-    {
-      "action": "fill",
-      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtPassword_wtInpPassword",
-      "value": "Odisseia1!"
+      "action": "keypress",
+      "selector": "input[id*='cnpj'], input[name*='cnpj'], input[placeholder*='CNPJ']",
+      "key": "Enter",
+      "timeout_ms": 12000
     },
     {
       "action": "click",
-      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtPassword_wt7_wt4"
+      "selector": "button:has-text('Buscar'), button:has-text('Consultar'), button[type='submit']",
+      "optional": true,
+      "timeout_ms": 15000,
+      "force": true
     },
     {
-      "action": "click",
-      "selector": "#VanillaTheme_wtLayLoginVendedor_block_wtMainContent_WebPatterns_wtLatLogin_block_wtAction_wtBtnLogin3",
-      "wait_for_navigation": true
-    },
-    {
-      "action": "select",
-      "selector": "#VanillaTheme_wtLayLoginVendedorEV_block_wtMainContent_WebPatterns_wt5_block_wtUsername_wtCmbSelEV",
-      "value": "3077390"
-    },
-    {
-      "action": "click",
-      "selector": "#VanillaTheme_wtLayLoginVendedorEV_block_wtMainContent_wtBtnCotador",
-      "wait_for_navigation": true
-    },
-    {
-      "action": "click",
-      "selector": "#VanillaTheme_wtLay_TelaPrincipal_block_wtMainContent_wt7_wtButtonNewPrice",
-      "wait_for_navigation": true
-    },
-    {
-      "action": "fill",
-      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_wtInpQuantidadeVidasSaude",
-      "value": "7"
-    },
-    {
-      "action": "scroll_into_view",
-      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_WebPatterns_wtMdlCrossSell_block_wtActions_wtBtnIncVid"
-    },
-    {
-      "action": "click",
-      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_WebPatterns_wtMdlCrossSell_block_wtActions_wtBtnIncVid"
-    },
-    {
-      "action": "click",
-      "selector": "#VanillaTheme_wt136_block_wtMainContent_WebPatterns_wt35_block_wtColumn2_wtBtnAvancarSemSaudeOdonto2",
-      "wait_for_navigation": true
-    },
-    {
-      "action": "fill",
-      "selector": "#VanillaTheme_wt82_block_wtMainContent_WebPatterns_wt32_block_wtColumn2_wtInpCNPJ",
-      "value": "{identifier}"
-    },
-    {
-      "action": "click",
-      "selector": "#VanillaTheme_wt82_block_wtMainContent_WebPatterns_wt32_block_wtColumn2_wtBtnAvancar",
-      "wait_for": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2, .ModalContainer"
-    },
-    {
-      "action": "conditional",
-      "condition_selector": ".ModalContainer",
-      "if_true": [
-        {
-          "action": "click",
-          "selector": "button, input[value*='Começo do preenchimento']"
-        },
-        {
-          "action": "click",
-          "selector": "a#VanillaTheme_wt235_block_wtHeader_wt219_wtLnkVoltar2 img"
-        }
-      ],
-      "if_false": [
-        {
-          "action": "extract",
-          "selectors": {
-            "cnpj": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpCNPJ",
-            "razao_social": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpRazaoSocial",
-            "nome_fantasia": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomeFantasia",
-            "cnae": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpCNAE",
-            "natureza_juridica": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNatJur",
-            "cep": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNumCEP",
-            "endereco": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomLogradouro",
-            "numero": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpDscNumLogradouro",
-            "bairro": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomBairro",
-            "cidade": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpNomCidade",
-            "uf": "#VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2_wtExpSigUF"
-          }
-        },
-        {
-          "action": "click",
-          "selector": "a#VanillaTheme_wt235_block_wtHeader_wt219_wtLnkVoltar2 img"
-        }
-      ]
+      "action": "wait_for",
+      "selector": ".resultado-busca, .mensagem-erro, .modal-body, .toast-message, [role='dialog'] .modal-body, .mensagem",
+      "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": ".ModalContainer, #VanillaTheme_wt235_block_wtMainContent_WebPatterns_wt98_block_wtColumn2",
-    "positive_keywords": ["Já possui plano", "CNPJ INFORMADO JÁ POSSUI PLANO"],
-    "negative_keywords": ["Dados do Cliente", "Informações da empresa", "Razão social"],
-    "error_keywords": ["Erro", "Falha", "Sessão expirada", "Acesso negado"]
+    "status_selector": ".resultado-busca, .mensagem-erro, .modal-body, .toast-message, .mensagem",
+    "status_timeout_ms": 20000,
+    "positive_keywords": [
+      "plano",
+      "beneficiário",
+      "já possui",
+      "ativo",
+      "encontrado"
+    ],
+    "negative_keywords": [
+      "não encontrado",
+      "não possui",
+      "inativo",
+      "sem vínculo"
+    ],
+    "error_keywords": [
+      "erro",
+      "inválido",
+      "indisponível"
+    ],
+    "plan_selector": ".resultado-busca strong, .resultado-busca .plano, .modal-body strong",
+    "plan_optional": true
   },
-  "notes": "Fluxo completo de automação SulAmérica ajustado conforme mapeamento real do portal de cotação. Inclui login com credenciais fixas, seleção da corretora UNICLASS, navegação até tela de CNPJ, captura de dados da empresa ou retorno de status de plano existente."
+  "notes": "Fluxo ajustado para fechar o banner de cookies e permitir o envio do CNPJ utilizando Enter ou o botão de consulta."
 }
