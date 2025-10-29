@@ -5,29 +5,88 @@
     {
       "action": "navigate",
       "target": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
-      "wait_for": "input[placeholder*='insira seus dados para a busca']"
+      "wait_for_any": [
+        "input#searchCpfOrCard",
+        "input[name='searchCpfOrCard']",
+        "input[placeholder*='cpf' i]"
+      ],
+      "timeout_ms": 20000
+    },
+    {
+      "action": "click",
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar')",
+      "optional": true,
+      "timeout_ms": 10000,
+      "force": true,
+      "delay": 0.3
     },
     {
       "action": "fill",
-      "selector": "input[placeholder*='insira seus dados para a busca']",
-      "value": "876.259.387-00"
+      "selector": "input#searchCpfOrCard",
+      "value": "{identifier}",
+      "timeout_ms": 20000
     },
     {
       "action": "keypress",
-      "selector": "input[placeholder*='insira seus dados para a busca']",
-      "key": "Enter"
+      "selector": "input#searchCpfOrCard",
+      "key": "Enter",
+      "timeout_ms": 15000
     },
     {
       "action": "wait_for",
-      "selector": ".modal-selecao-beneficiario, .modal-erro-beneficiario",
-      "timeout_ms": 10000
+      "selector": [
+        "text=/beneficiário/i",
+        "text=/cartão/i",
+        "text=/campo obrigatório/i",
+        "text=/cpf inválido/i",
+        ".bs-modal__body",
+        ".bs-alert__title",
+        ".input-redux__error span",
+        ".input-redux__error"
+      ],
+      "timeout_ms": 20000
     }
   ],
   "result_parsing": {
-    "status_selector": ".modal-selecao-beneficiario, .modal-erro-beneficiario",
-    "positive_keywords": ["Selecione o beneficiário", "Escolha o beneficiário", "plano", "cartão"],
-    "negative_keywords": ["Beneficiário não encontrado", "Dados inválidos", "erro", "CPF incorreto"],
-    "error_keywords": ["Beneficiário não encontrado", "Dados inválidos", "CPF incorreto", "erro"]
+    "status_selectors": [
+      "text=/beneficiário/i",
+      "text=/cartão/i",
+      "text=/campo obrigatório/i",
+      "text=/cpf inválido/i",
+      ".bs-modal__body",
+      ".bs-alert__title",
+      ".input-redux__error span",
+      ".input-redux__error"
+    ],
+    "status_timeout_ms": 20000,
+    "status_poll_interval_ms": 400,
+    "positive_keywords": [
+      "selecione o beneficiário",
+      "escolha o beneficiário",
+      "beneficiário encontrado",
+      "cartão",
+      "plano",
+      "ativo"
+    ],
+    "negative_keywords": [
+      "beneficiário não encontrado",
+      "dados inválidos",
+      "campo obrigatório",
+      "cpf incorreto",
+      "não encontramos"
+    ],
+    "error_keywords": [
+      "erro",
+      "inválido",
+      "não encontrado",
+      "tente novamente"
+    ],
+    "plan_selectors": [
+      ".bs-modal__body",
+      ".bs-alert__content",
+      ".input-redux__error span"
+    ],
+    "plan_optional": true
   },
-  "notes": "A busca do CPF pode ser submetida tanto clicando na lupa quanto pressionando Enter no campo. Se o beneficiário existir, aparece o modal '.modal-selecao-beneficiario' para escolha de plano/cartão. Se não existir, aparece modal '.modal-erro-beneficiario' com a mensagem 'Beneficiário não encontrado'. Há também possibilidade de consentimento de cookies/disclaimer, normalmente via popup/botão no rodapé."
+  "notes": "Após enviar o CPF com Enter, modais e mensagens inline exibem o resultado. Os seletores toleram variações de modal e mensagens de erro."
 }

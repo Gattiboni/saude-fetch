@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { apiFetch } from '../../App'
 
-function ProgressBar({ current, total }){
+function ProgressBar({ current, total, etaSeconds }){
   const pct = total ? Math.round((current/total)*100) : 0
+  const etaLabel = total && current < total && etaSeconds > 0 ? ` • ETA ~${etaSeconds}s` : ''
   return (
     <div className="space-y-1">
-      <div className="label" data-testid="cnpj-progress-label">{total? `Processando ${current} de ${total}…` : 'Aguardando envio'}</div>
+      <div className="label" data-testid="cnpj-progress-label">{total? `Processando ${current} de ${total} (${pct}%)${etaLabel}` : 'Aguardando envio'}</div>
       <div className="w-full h-2 bg-gray-800 rounded" data-testid="cnpj-progress-bar">
         <div className="h-2 bg-blue-500 rounded" style={{ width: `${pct}%`, transition: 'width .3s' }} />
       </div>
@@ -20,6 +21,8 @@ export default function CnpjPipeline(){
   const [summary, setSummary] = useState(null)
   const [items, setItems] = useState([])
   const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [startTime, setStartTime] = useState(null)
+  const [avgTime, setAvgTime] = useState(0)
 
   const uploadingDisabled = useMemo(()=> running || !file, [running, file])
 
@@ -38,11 +41,21 @@ export default function CnpjPipeline(){
       }
       if (!cnpjs.length){ setError('Nenhum CNPJ válido encontrado.'); return }
       setProgress({ current: 0, total: cnpjs.length })
+      setStartTime(Date.now())
+      setAvgTime(0)
 
       const res = await apiFetch('/api/fetch/cnpj', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cnpjs }) })
       setSummary({ total: res.total, ativos: res.ativos, inativos: res.inativos })
       setItems(res.items || res.resultados || [])
-      setProgress({ current: res.items?.length || res.resultados?.length || res.total || 0, total: res.total || cnpjs.length })
+      const processed = res.items?.length || res.resultados?.length || res.total || 0
+      const totalItems = res.total || cnpjs.length
+      setProgress({ current: processed, total: totalItems })
+      if (processed > 0){
+        const elapsed = (Date.now() - (startTime || Date.now())) / 1000
+        if (elapsed > 0){
+          setAvgTime(elapsed / processed)
+        }
+      }
     }catch(err){
       const msg = String(err?.message||err)
       if (/Faltam credenciais SulAmérica/.test(msg)){
@@ -53,8 +66,22 @@ export default function CnpjPipeline(){
     }finally{
       setRunning(false)
       setFile(null)
+      setStartTime(null)
     }
   }
+
+  useEffect(()=>{
+    if (!startTime || !running) return
+    if (!progress.total) return
+    const interval = setInterval(()=>{
+      if (!startTime) return
+      const elapsed = (Date.now() - startTime) / 1000
+      if (elapsed > 0 && progress.current > 0){
+        setAvgTime(elapsed / progress.current)
+      }
+    }, 1000)
+    return ()=> clearInterval(interval)
+  }, [startTime, running, progress.current, progress.total])
 
   const downloadXlsx = async () => {
     try{
@@ -64,6 +91,8 @@ export default function CnpjPipeline(){
       const a = document.createElement('a'); a.href = url; a.download = 'sulamerica_cnpj.xlsx'; a.click(); URL.revokeObjectURL(url)
     }catch(err){ setError('Falha ao baixar XLSX: ' + (err?.message||err)) }
   }
+
+  const etaSeconds = progress.total && avgTime > 0 ? Math.max(0, Math.round((progress.total - progress.current) * avgTime)) : 0
 
   return (
     <div className="card space-y-4" data-testid="cnpj-pipeline">
@@ -76,7 +105,7 @@ export default function CnpjPipeline(){
         <button className="btn" data-testid="cnpj-submit" disabled={uploadingDisabled}>{running? 'Processando…' : 'Enviar e processar'}</button>
       </form>
 
-      <ProgressBar current={progress.current} total={progress.total} />
+      <ProgressBar current={progress.current} total={progress.total} etaSeconds={etaSeconds} />
 
       {summary && (
         <div className="label flex items-center gap-3" data-testid="cnpj-summary">
