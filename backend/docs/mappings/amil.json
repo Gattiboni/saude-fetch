@@ -15,6 +15,12 @@
       "delay": 0.5
     },
     {
+      "action": "click",
+      "selector": "#onetrust-accept-btn-handler, button[data-testid='accept-all'], button[aria-label*='aceitar']",
+      "optional": true,
+      "delay": 0.5
+    },
+    {
       "action": "fill",
       "selector": "#searchCpfOrCard",
       "value": "{identifier}"
