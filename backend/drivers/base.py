@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import random
 from contextlib import asynccontextmanager
@@ -42,6 +43,15 @@ ERRORS_DIR = os.path.normpath(
 FETCH_MIN_DELAY = float(os.getenv("FETCH_MIN_DELAY", "0.5"))
 FETCH_MAX_DELAY = float(os.getenv("FETCH_MAX_DELAY", "1.5"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
+TIMEOUT_SELECTOR_MS = int(os.getenv("TIMEOUT_SELECTOR_MS", "12000"))
+BLOCK_SLEEP_SECONDS = int(os.getenv("BLOCK_SLEEP_SECONDS", "120"))
+
+logger = logging.getLogger(__name__)
+
+
+class BlockedRequestError(Exception):
+    """Raised when the remote website indicates an anti-bot block."""
+
 
 @dataclass
 class DriverResult:
@@ -51,6 +61,8 @@ class DriverResult:
     message: str = ""
     captured_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     debug: Dict[str, Any] = field(default_factory=dict)
+    identifier: str = ""
+    id_type: str = ""
 
 class BaseDriver:
     """
@@ -92,12 +104,34 @@ class BaseDriver:
             self.mapping = None
             print(f"[{self.operator}] erro no reload do mapping: {e}")
 
-    async def consult(self, identifier: str, id_type: str) -> DriverResult:
+    async def consult(
+        self,
+        identifier: str,
+        id_type: str,
+        page: Optional[Any] = None,
+    ) -> DriverResult:
+        if id_type not in self.supported_id_types:
+            raise ValueError(f"{self.operator} não suporta identificador do tipo '{id_type}'")
+
         # throttle + retries genéricos
         for attempt in range(MAX_RETRIES):
             try:
                 await asyncio.sleep(random.uniform(FETCH_MIN_DELAY, FETCH_MAX_DELAY))
-                return await self._perform(identifier, id_type)
+                result = await self._perform(identifier, id_type, page=page)
+                if not result.identifier:
+                    result.identifier = identifier
+                if not result.id_type:
+                    result.id_type = id_type
+                return result
+            except BlockedRequestError as block:
+                logger.warning(
+                    "Bloqueio detectado em %s: %s (tentativa %s/%s)",
+                    self.operator,
+                    block,
+                    attempt + 1,
+                    MAX_RETRIES,
+                )
+                await asyncio.sleep(BLOCK_SLEEP_SECONDS)
             except Exception as e:
                 if attempt + 1 == MAX_RETRIES:
                     return DriverResult(
@@ -105,10 +139,18 @@ class BaseDriver:
                         status="erro",
                         plan="",
                         message=str(e),
+                        identifier=identifier,
+                        id_type=id_type,
                     )
                 await asyncio.sleep(1.25)
         # nunca cai aqui, mas deixa o retorno defensivo
-        return DriverResult(operator=self.operator, status="erro", message="falha após retries")
+        return DriverResult(
+            operator=self.operator,
+            status="erro",
+            message="falha após retries",
+            identifier=identifier,
+            id_type=id_type,
+        )
 
     async def _perform(
         self,
@@ -125,7 +167,7 @@ class BaseDriver:
             raise Exception("mapping ausente para este driver")
 
         if "steps" in self.mapping:
-            return await self._execute_steps(identifier, page=page)
+            return await self._execute_steps(identifier, id_type, page=page)
 
         # Legado
         sel = (self.mapping or {}).get("selectors", {})
@@ -149,35 +191,42 @@ class BaseDriver:
                 finally:
                     await browser.close()
 
-        return DriverResult(operator=self.operator, status="indefinido", message="driver legado executado")
+        return DriverResult(
+            operator=self.operator,
+            status="indefinido",
+            message="driver legado executado",
+            identifier=identifier,
+            id_type=id_type,
+        )
 
     @asynccontextmanager
     async def _persistent_browser(self):
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            try:
-                yield page
-            finally:
-                await browser.close()
+        playwright = await async_playwright().start()
+        chromium = await playwright.chromium.launch(headless=True)
+        context = await chromium.new_context()
+        page = await context.new_page()
+        try:
+            yield page
+        finally:
+            await context.close()
+            await chromium.close()
+            await playwright.stop()
 
     async def _execute_steps(
         self,
         identifier: str,
+        id_type: str,
         page: Optional[Any] = None,
     ) -> DriverResult:
         if page is not None:
-            return await self._execute_steps_on_page(page, identifier)
+            return await self._execute_steps_on_page(page, identifier, id_type)
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page_obj = await browser.new_page()
-            try:
-                return await self._execute_steps_on_page(page_obj, identifier)
-            finally:
-                await browser.close()
+        async with self._persistent_browser() as page_obj:
+            return await self._execute_steps_on_page(page_obj, identifier, id_type)
 
-    async def _execute_steps_on_page(self, page: Any, identifier: str) -> DriverResult:
+    async def _execute_steps_on_page(
+        self, page: Any, identifier: str, id_type: str
+    ) -> DriverResult:
         steps = self.mapping.get("steps", [])
         parsing = self.mapping.get("result_parsing", {})
         url = self.mapping.get("url")
@@ -195,6 +244,11 @@ class BaseDriver:
             for idx, step in enumerate(steps):
                 await self._run_step(page, step, identifier, run_debug, idx)
 
+            html_snapshot = (await page.content()).lower()
+            if "captcha" in html_snapshot or "429" in html_snapshot:
+                run_debug.setdefault("block_detected", True)
+                raise BlockedRequestError("captcha ou limitação detectada na página")
+
             status, plan, message, parse_debug = await self._parse_result(page, parsing)
             run_debug.update(parse_debug)
         except Exception as e:
@@ -208,6 +262,8 @@ class BaseDriver:
                 plan="",
                 message=str(e),
                 debug=run_debug,
+                identifier=identifier,
+                id_type=id_type,
             )
 
         return DriverResult(
@@ -216,6 +272,8 @@ class BaseDriver:
             plan=plan,
             message=message,
             debug=run_debug,
+            identifier=identifier,
+            id_type=id_type,
         )
 
     async def _run_step(
@@ -228,8 +286,9 @@ class BaseDriver:
     ) -> None:
         action = step.get("action")
         optional = bool(step.get("optional", False))
-        post_delay = float(step.get("delay", 0.2)) if step.get("delay", 0.2) else 0.0
-        timeout = step.get("timeout_ms", 8000)
+        post_delay = float(step.get("delay", 0.0)) if step.get("delay") else 0.0
+        post_wait_selector = step.get("wait_selector")
+        timeout = step.get("timeout_ms", TIMEOUT_SELECTOR_MS)
 
         step_log = {
             "index": index,
@@ -248,7 +307,9 @@ class BaseDriver:
                     await page.goto(target)
                 wait_for = step.get("wait_for")
                 if wait_for:
-                    await page.wait_for_selector(wait_for, timeout=timeout)
+                    await page.locator(wait_for).first.wait_for(
+                        state="visible", timeout=timeout
+                    )
             elif action == "fill":
                 selector = step.get("selector")
                 if not selector:
@@ -262,16 +323,14 @@ class BaseDriver:
                 await page.click(selector, timeout=timeout)
             elif action == "keypress":
                 key = step.get("key", "Enter")
-                focus_selector = step.get("selector")
-                if focus_selector:
-                    await page.press(focus_selector, key, timeout=timeout)
-                else:
-                    await page.keyboard.press(key)
+                await self.keypress(page, step.get("selector"), key=key, timeout=timeout)
             elif action == "wait_for":
                 selector = step.get("selector")
                 if not selector:
                     raise ValueError("wait_for action requer 'selector'")
-                await page.wait_for_selector(selector, timeout=timeout)
+                await page.locator(selector).first.wait_for(
+                    state=step.get("state", "visible"), timeout=timeout
+                )
             elif action == "wait_for_state":
                 await page.wait_for_load_state(step.get("state", "load"))
             elif action == "sleep":
@@ -290,9 +349,25 @@ class BaseDriver:
                 run_debug.setdefault("steps", []).append(step_log)
                 raise
         finally:
-            if post_delay:
-                await asyncio.sleep(post_delay)
+            if post_wait_selector:
+                try:
+                    await page.locator(post_wait_selector).first.wait_for(
+                        state="visible", timeout=timeout
+                    )
+                except Exception as wait_err:
+                    if not optional:
+                        step_log.setdefault("warnings", []).append(str(wait_err))
+            elif post_delay:
+                await page.wait_for_timeout(int(post_delay * 1000))
             run_debug.setdefault("steps", []).append(step_log)
+
+    async def keypress(
+        self, page: Any, selector: Optional[str], key: str = "Enter", timeout: Optional[int] = None
+    ) -> None:
+        if selector:
+            await page.press(selector, key, timeout=timeout)
+        else:
+            await page.keyboard.press(key)
 
     async def _parse_result(
         self, page: Any, parsing: Dict[str, Any]

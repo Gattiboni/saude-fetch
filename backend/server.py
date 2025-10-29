@@ -1,12 +1,13 @@
 import json
 import os
 import uuid
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -15,10 +16,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
 from drivers.driver_manager import manager as driver_manager
-from drivers.base import DriverResult
+from drivers.base import BaseDriver, DriverResult
 from drivers.sulamerica import SulamericaDriver
 from utils.logger import JobLogger
 from utils.auth import create_access_token, verify_token, check_credentials, AuthError
+from utils.validators import validate_cpf_cnpj
+from db.cache import Cache
+from bson import ObjectId
 
 
 # --- APP PRINCIPAL ---
@@ -100,6 +104,17 @@ async def get_db():
     return mongo_db
 
 
+async def _find_job_doc(db: AsyncIOMotorDatabase, job_id: str) -> Optional[Dict[str, Any]]:
+    doc = await db.jobs.find_one({"_id": job_id})
+    if doc:
+        return doc
+    try:
+        oid = ObjectId(job_id)
+    except Exception:
+        return None
+    return await db.jobs.find_one({"_id": oid})
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     global mongo_client
@@ -173,7 +188,7 @@ async def list_jobs(user: str = Depends(require_auth)):
 @app.get("/api/jobs/{job_id}", response_model=JobOut)
 async def get_job(job_id: str, user: str = Depends(require_auth)):
     db = await get_db()
-    doc = await db.jobs.find_one({"_id": job_id})
+    doc = await _find_job_doc(db, job_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Job not found")
     return JobOut(
@@ -192,7 +207,13 @@ async def get_job(job_id: str, user: str = Depends(require_auth)):
 
 @app.get("/api/jobs/{job_id}/log")
 async def download_job_log(job_id: str, user: str = Depends(require_auth)):
-    path = os.path.join(LOGS_DIR, f"{job_id}.log")
+    db = await get_db()
+    doc = await _find_job_doc(db, job_id)
+    path = None
+    if doc:
+        path = doc.get("job_log_path")
+    if not path:
+        path = os.path.join(LOGS_DIR, f"{job_id}.log")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Log not found")
     return FileResponse(path, media_type="text/plain", filename=f"{job_id}.log")
@@ -201,7 +222,7 @@ async def download_job_log(job_id: str, user: str = Depends(require_auth)):
 @app.get("/api/jobs/{job_id}/results")
 async def download_job_results(job_id: str, format: str = "json", user: str = Depends(require_auth)):
     db = await get_db()
-    doc = await db.jobs.find_one({"_id": job_id})
+    doc = await _find_job_doc(db, job_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -445,6 +466,7 @@ def build_cnpj_xlsx(rows: List[Dict[str, Any]], out_path: str) -> None:
 
 async def process_job(job_id: str, path: str, forced_type: str = "auto"):
     db = await get_db()
+    cache = Cache(db)
     logger = JobLogger(job_id, LOGS_DIR)
     job_started_at = datetime.utcnow().isoformat()
     detailed_entries: List[Dict[str, Any]] = []
@@ -457,102 +479,203 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
         else:
             df = pd.read_excel(path, dtype=str)
 
-        identifiers = to_rows(df, forced_type)
-        total = len(identifiers)
-        results, success, error, processed = [], 0, 0, 0
+        raw_identifiers = to_rows(df, forced_type)
+        unique_identifiers = sorted({clean_identifier(x) for x in raw_identifiers if str(x).strip()})
+        total = len(unique_identifiers)
+
+        await db.jobs.update_one(
+            {"_id": job_id},
+            {"$set": {"total": total, "processed": 0, "success": 0, "error": 0}},
+        )
+
+        results: List[Dict[str, Any]] = []
+        success = 0
+        error = 0
+        processed = 0
         drivers = driver_manager.drivers
         logger.info("identifiers_loaded", total=total)
 
-        for ident in identifiers:
+        invalid_identifiers: List[str] = []
+        grouped: Dict[str, List[str]] = defaultdict(list)
+        for ident in unique_identifiers:
+            if not validate_cpf_cnpj(ident):
+                invalid_identifiers.append(ident)
+                continue
             itype = detect_type(ident) if forced_type == "auto" else forced_type
             if itype not in ("cpf", "cnpj"):
-                error += 1
-                processed += 1
+                invalid_identifiers.append(ident)
+                continue
+            grouped[itype].append(ident)
+
+        async def update_job_progress():
+            await db.jobs.update_one(
+                {"_id": job_id},
+                {
+                    "$set": {
+                        "processed": processed,
+                        "success": success,
+                        "error": error,
+                        "total": total,
+                    }
+                },
+            )
+
+        for ident in invalid_identifiers:
+            detail_entry = {
+                "input": ident,
+                "type": "invalid",
+                "operator": "",
+                "status": "invalid",
+                "plan": "",
+                "message": "identificador inválido",
+                "captured_at": datetime.utcnow().isoformat(),
+                "debug": {"reason": "invalid_identifier"},
+            }
+            results.append(detail_entry)
+            detailed_entries.append(detail_entry)
+            error += 1
+            processed += 1
+            logger.error("identifier_invalid", identifier=ident, id_type="invalid")
+            await update_job_progress()
+
+        identifier_meta: Dict[str, Dict[str, Any]] = {}
+        results_buffer: Dict[str, List[DriverResult]] = defaultdict(list)
+
+        async def finalize_identifier(identifier: str) -> None:
+            nonlocal success, error, processed
+            meta = identifier_meta.pop(identifier, {"id_type": forced_type, "expected": 0})
+            entries = results_buffer.pop(identifier, [])
+            if not entries:
                 detail_entry = {
-                    "input": ident,
-                    "type": itype,
+                    "input": identifier,
+                    "type": meta.get("id_type", forced_type),
                     "operator": "",
-                    "status": "invalid",
+                    "status": "erro",
                     "plan": "",
-                    "message": "identificador inválido",
+                    "message": "sem resultado",
                     "captured_at": datetime.utcnow().isoformat(),
-                    "debug": {"reason": "invalid_identifier"},
+                    "debug": {"reason": "no_result"},
                 }
                 results.append(detail_entry)
                 detailed_entries.append(detail_entry)
-                logger.error("identifier_invalid", identifier=ident, id_type=itype)
-                await db.jobs.update_one({"_id": job_id}, {"$set": {"processed": processed, "total": total}})
-                continue
+                error += 1
+                processed += 1
+                logger.error(
+                    "identifier_without_result",
+                    identifier=identifier,
+                    id_type=meta.get("id_type", forced_type),
+                )
+                await update_job_progress()
+                return
 
-            item_has_result = False
-            for drv in drivers:
-                if itype not in getattr(drv, "supported_id_types", ("cpf",)):
-                    logger.info(
-                        "driver_skipped",
-                        identifier=ident,
-                        id_type=itype,
-                        driver=drv.name,
-                        reason="unsupported_id_type",
-                    )
-                    continue
-                try:
-                    dres: DriverResult = await drv.consult(ident, itype)
-                    detail_entry = {
-                        "input": ident,
-                        "type": itype,
-                        "operator": drv.name,
-                        "status": dres.status,
-                        "plan": dres.plan,
-                        "message": dres.message,
-                        "captured_at": dres.captured_at,
-                        "debug": dres.debug,
-                    }
-                    results.append(detail_entry)
-                    detailed_entries.append(detail_entry)
-                    logger.info(
-                        "driver_result",
-                        identifier=ident,
-                        id_type=itype,
-                        driver=drv.name,
-                        status=dres.status,
-                        plan=dres.plan,
-                        message=dres.message,
-                        debug=dres.debug,
-                    )
-                    item_has_result = True
-                except Exception as e:
-                    detail_entry = {
-                        "input": ident,
-                        "type": itype,
-                        "operator": drv.name,
-                        "status": "error",
-                        "plan": "",
-                        "message": str(e),
-                        "captured_at": datetime.utcnow().isoformat(),
-                        "debug": {"exception": str(e)},
-                    }
-                    results.append(detail_entry)
-                    detailed_entries.append(detail_entry)
-                    logger.error(
-                        "driver_exception",
-                        identifier=ident,
-                        id_type=itype,
-                        driver=drv.name,
-                        error=str(e),
-                    )
-
-            if item_has_result:
+            has_success = any(
+                entry.status.lower() not in {"erro", "invalid"} for entry in entries
+            )
+            if has_success:
                 success += 1
             else:
                 error += 1
             processed += 1
-            await db.jobs.update_one({"_id": job_id}, {"$set": {"processed": processed, "total": total}})
+
+            for entry in entries:
+                detail_entry = {
+                    "input": identifier,
+                    "type": meta.get("id_type", forced_type),
+                    "operator": entry.operator,
+                    "status": entry.status,
+                    "plan": entry.plan,
+                    "message": entry.message,
+                    "captured_at": entry.captured_at,
+                    "debug": entry.debug,
+                }
+                results.append(detail_entry)
+                detailed_entries.append(detail_entry)
+
+            await update_job_progress()
             logger.info(
                 "identifier_processed",
-                identifier=ident,
-                id_type=itype,
-                item_has_result=item_has_result,
+                identifier=identifier,
+                id_type=meta.get("id_type", forced_type),
+                drivers=len(entries),
+                success=has_success,
             )
+
+        async def handle_progress(
+            identifier: str, driver: BaseDriver, result: DriverResult, from_cache: bool
+        ) -> None:
+            meta = identifier_meta.get(identifier)
+            if not meta:
+                return
+            debug_info = dict(result.debug or {})
+            if from_cache:
+                debug_info["cache_hit"] = True
+            result.debug = debug_info
+            logger.info(
+                "driver_result",
+                identifier=identifier,
+                id_type=meta.get("id_type", forced_type),
+                driver=driver.name,
+                status=result.status,
+                plan=result.plan,
+                message=result.message,
+                cached=from_cache,
+                debug=debug_info,
+            )
+            results_buffer[identifier].append(result)
+            if len(results_buffer[identifier]) >= meta.get("expected", 0):
+                await finalize_identifier(identifier)
+
+        for id_type, identifiers in grouped.items():
+            if not identifiers:
+                continue
+            active_drivers = [
+                drv
+                for drv in drivers
+                if id_type in getattr(drv, "supported_id_types", ("cpf",))
+            ]
+            if not active_drivers:
+                for ident in identifiers:
+                    detail_entry = {
+                        "input": ident,
+                        "type": id_type,
+                        "operator": "",
+                        "status": "erro",
+                        "plan": "",
+                        "message": "nenhum driver suporta este tipo",
+                        "captured_at": datetime.utcnow().isoformat(),
+                        "debug": {"reason": "unsupported_id_type"},
+                    }
+                    results.append(detail_entry)
+                    detailed_entries.append(detail_entry)
+                    error += 1
+                    processed += 1
+                    logger.error(
+                        "identifier_unsupported",
+                        identifier=ident,
+                        id_type=id_type,
+                    )
+                    await update_job_progress()
+                continue
+
+            expected = len(active_drivers)
+            for ident in identifiers:
+                identifier_meta[ident] = {"expected": expected, "id_type": id_type}
+
+            await driver_manager.run_batch(
+                identifiers,
+                id_type,
+                cache=cache,
+                db=db,
+                progress_callback=handle_progress,
+            )
+
+            for ident in list(identifiers):
+                if ident in identifier_meta:
+                    await finalize_identifier(ident)
+
+        if results_buffer:
+            for ident in list(results_buffer.keys()):
+                await finalize_identifier(ident)
 
         out_df = pd.DataFrame(results)
         xlsx_path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
@@ -591,15 +714,21 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             xlsx_path=xlsx_path,
         )
 
-        await db.jobs.update_one({"_id": job_id}, {"$set": {
-            "status": "completed",
-            "total": total,
-            "success": success,
-            "error": error,
-            "processed": processed,
-            "completed_at": datetime.utcnow().isoformat(),
-            "xlsx_path": xlsx_path,
-        }})
+        await db.jobs.update_one(
+            {"_id": job_id},
+            {
+                "$set": {
+                    "status": "completed",
+                    "total": total,
+                    "success": success,
+                    "error": error,
+                    "processed": processed,
+                    "completed_at": datetime.utcnow().isoformat(),
+                    "xlsx_path": xlsx_path,
+                    "job_log_path": logger.path,
+                }
+            },
+        )
     except Exception as e:
         logger.error("job_failed", error=str(e))
         write_last_run_log(
@@ -616,11 +745,17 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             job_type=forced_type,
             job_log_path=logger.path,
         )
-        await db.jobs.update_one({"_id": job_id}, {"$set": {
-            "status": "failed",
-            "error_message": str(e),
-            "completed_at": datetime.utcnow().isoformat(),
-        }})
+        await db.jobs.update_one(
+            {"_id": job_id},
+            {
+                "$set": {
+                    "status": "failed",
+                    "error_message": str(e),
+                    "completed_at": datetime.utcnow().isoformat(),
+                    "job_log_path": logger.path,
+                }
+            },
+        )
 
 
 def build_xlsx_from_results(df: pd.DataFrame, out_path: str):
