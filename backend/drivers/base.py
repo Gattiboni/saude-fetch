@@ -251,6 +251,8 @@ class BaseDriver:
             except Exception as e:
                 if not parsing.get("plan_optional", False):
                     print(f"[{self.operator}] falha ao capturar plano em '{plan_selector}': {e}")
+        if plan and status in {"indefinido", "inativo"}:
+            status = "ativo"
         if not plan and status == "ativo" and message:
             plan = message
 

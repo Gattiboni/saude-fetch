@@ -5,14 +5,8 @@
     {
       "action": "navigate",
       "target": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
-      "wait_for": "#searchCpfOrCard",
+      "wait_for": "#cpf_input, input[name='cpf']",
       "timeout_ms": 15000
-    },
-    {
-      "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[data-testid='accept-all'], button[aria-label*='aceitar']",
-      "optional": true,
-      "delay": 0.5
     },
     {
       "action": "click",
@@ -22,31 +16,35 @@
     },
     {
       "action": "fill",
-      "selector": "#searchCpfOrCard",
+      "selector": "#cpf_input, input[name='cpf']",
       "value": "{identifier}"
     },
     {
-      "action": "click",
-      "selector": ".js-search-icon"
+      "action": "keypress",
+      "selector": "#cpf_input, input[name='cpf']",
+      "key": "Enter"
     },
     {
       "action": "wait_for",
-      "selector": "#bs-modal-selecioneBeneficiario, .bs-modal__container .bs-alert__title",
+      "selector": "#plan-input_input, .input-redux__error",
       "timeout_ms": 15000
     }
   ],
   "result_parsing": {
-    "status_selector": ".bs-modal__container .bs-alert__title, .bs-modal__container .bs-alert__description",
+    "status_selector": "#plan-input_input .rw-input, .input-redux__error",
     "positive_keywords": [
-      "Selecione o beneficiário",
-      "Escolha o beneficiário",
-      "beneficiário encontrado",
-      "plano"
+      "rede",
+      "plano",
+      "beneficiário",
+      "ouro",
+      "prata",
+      "bronze"
     ],
     "negative_keywords": [
-      "Beneficiário não encontrado",
-      "Dados inválidos",
-      "preencha corretamente",
+      "campo obrigatório",
+      "cpf inválido",
+      "não encontramos",
+      "preencha",
       "erro"
     ],
     "error_keywords": [
@@ -54,8 +52,8 @@
       "inválido",
       "não encontrado"
     ],
-    "plan_selector": ".bs-modal__container .bs-alert__description",
+    "plan_selector": "#plan-input_input .rw-input",
     "plan_optional": true
   },
-  "notes": "Fluxo real: o campo #searchCpfOrCard recebe o CPF. Ao clicar no ícone .js-search-icon (ou pressionar Enter), a página exibe um modal. Se o CPF for válido, o modal #bs-modal-selecioneBeneficiario aparece com o texto 'Selecione o beneficiário'. Se inválido, surge outro modal com título 'Beneficiário não encontrado' e conteúdo 'Dados inválidos, por favor, preencha corretamente.'."
+  "notes": "Após preencher o campo #cpf_input e pressionar Enter, o componente #plan-input_input exibe o nome do plano. Quando o CPF é inválido, um elemento com classe .input-redux__error aparece com o texto 'Campo obrigatório'."
 }
