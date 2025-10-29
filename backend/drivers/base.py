@@ -222,6 +222,10 @@ class BaseDriver:
         except Exception:
             raw_text = ""
 
+        print(
+            f"[{self.operator}] texto capturado em '{status_selector}': {raw_text[:200]}"
+        )
+
         lowered = raw_text.lower()
         pos = [s.lower() for s in parsing.get("positive_keywords", [])]
         neg = [s.lower() for s in parsing.get("negative_keywords", [])]

@@ -5,7 +5,8 @@
     {
       "action": "navigate",
       "target": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
-      "wait_for": "input[placeholder*='busca'], input[placeholder*='CPF'], input[name*='cpf']"
+      "wait_for": "input[placeholder*='busca'], input[placeholder*='CPF'], input[name*='cpf']",
+      "timeout_ms": 15000
     },
     {
       "action": "click",
@@ -26,11 +27,11 @@
     {
       "action": "wait_for",
       "selector": ".modal-selecao-beneficiario, .modal-erro-beneficiario, .modal-dialog[role='dialog']",
-      "timeout_ms": 12000
+      "timeout_ms": 15000
     }
   ],
   "result_parsing": {
-    "status_selector": ".modal-selecao-beneficiario .modal-title, .modal-erro-beneficiario .modal-title, .modal-selecao-beneficiario, .modal-erro-beneficiario, body",
+    "status_selector": ".modal-selecao-beneficiario .modal-title, .modal-erro-beneficiario .modal-title, .modal-selecao-beneficiario .modal-body, .modal-erro-beneficiario .modal-body",
     "positive_keywords": [
       "Selecione o beneficiário",
       "Escolha o beneficiário",
