@@ -35,6 +35,9 @@ def _resolve_mappings_dir() -> str:
 
 MAPPINGS_DIR = _resolve_mappings_dir()
 _PRINTED_MAPPINGS_DIR = False
+ERRORS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "errors")
+)
 
 FETCH_MIN_DELAY = float(os.getenv("FETCH_MIN_DELAY", "0.5"))
 FETCH_MAX_DELAY = float(os.getenv("FETCH_MAX_DELAY", "1.5"))
@@ -47,6 +50,7 @@ class DriverResult:
     plan: str = ""
     message: str = ""
     captured_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    debug: Dict[str, Any] = field(default_factory=dict)
 
 class BaseDriver:
     """
@@ -56,10 +60,13 @@ class BaseDriver:
     - .mapping  (dict carregado a partir de <MAPPINGS_DIR>/<OPERATOR>.json)
     - .consult(identifier, id_type) -> DriverResult
     """
-    def __init__(self, operator: str):
+    def __init__(self, operator: str, supported_id_types: Optional[Tuple[str, ...]] = None):
         self.operator = operator.lower()
         self.name = self.operator  # <- FALTAVA. O pipeline usa driver.name
         self.mapping = None
+        self.supported_id_types: Tuple[str, ...] = tuple(
+            supported_id_types or ("cpf",)
+        )
         global _PRINTED_MAPPINGS_DIR
         if not _PRINTED_MAPPINGS_DIR:
             print(f"[drivers] using MAPPINGS_DIR: {MAPPINGS_DIR}")
@@ -175,24 +182,64 @@ class BaseDriver:
         parsing = self.mapping.get("result_parsing", {})
         url = self.mapping.get("url")
 
+        run_debug: Dict[str, Any] = {
+            "mapping_path": self.mapping_path,
+            "steps": [],
+        }
+
         try:
             if url:
                 await page.goto(url)
+                run_debug.setdefault("navigation", {}).update({"target": url})
 
-            for step in steps:
-                await self._run_step(page, step, identifier)
+            for idx, step in enumerate(steps):
+                await self._run_step(page, step, identifier, run_debug, idx)
 
-            status, plan, message = await self._parse_result(page, parsing)
+            status, plan, message, parse_debug = await self._parse_result(page, parsing)
+            run_debug.update(parse_debug)
         except Exception as e:
-            return DriverResult(operator=self.operator, status="erro", plan="", message=str(e))
+            screenshot_path = await self._capture_failure_artifact(page)
+            if screenshot_path:
+                run_debug.setdefault("artifacts", {})["screenshot"] = screenshot_path
+            run_debug.setdefault("error", str(e))
+            return DriverResult(
+                operator=self.operator,
+                status="erro",
+                plan="",
+                message=str(e),
+                debug=run_debug,
+            )
 
-        return DriverResult(operator=self.operator, status=status, plan=plan, message=message)
+        return DriverResult(
+            operator=self.operator,
+            status=status,
+            plan=plan,
+            message=message,
+            debug=run_debug,
+        )
 
-    async def _run_step(self, page: Any, step: Dict[str, Any], identifier: str) -> None:
+    async def _run_step(
+        self,
+        page: Any,
+        step: Dict[str, Any],
+        identifier: str,
+        run_debug: Dict[str, Any],
+        index: int,
+    ) -> None:
         action = step.get("action")
         optional = bool(step.get("optional", False))
         post_delay = float(step.get("delay", 0.2)) if step.get("delay", 0.2) else 0.0
         timeout = step.get("timeout_ms", 8000)
+
+        step_log = {
+            "index": index,
+            "action": action,
+            "selector": step.get("selector"),
+            "target": step.get("target"),
+            "key": step.get("key"),
+            "timeout_ms": timeout,
+            "optional": optional,
+        }
 
         try:
             if action == "navigate":
@@ -231,19 +278,32 @@ class BaseDriver:
                 post_delay = float(step.get("seconds", 0.0))
             else:
                 raise ValueError(f"ação desconhecida: {action}")
+            step_log["status"] = "ok"
         except Exception as e:
             if optional:
                 print(f"[{self.operator}] passo opcional '{action}' ignorado: {e}")
+                step_log["status"] = "skipped"
+                step_log["error"] = str(e)
             else:
+                step_log["status"] = "error"
+                step_log["error"] = str(e)
+                run_debug.setdefault("steps", []).append(step_log)
                 raise
         finally:
             if post_delay:
                 await asyncio.sleep(post_delay)
+            run_debug.setdefault("steps", []).append(step_log)
 
-    async def _parse_result(self, page: Any, parsing: Dict[str, Any]) -> Tuple[str, str, str]:
+    async def _parse_result(
+        self, page: Any, parsing: Dict[str, Any]
+    ) -> Tuple[str, str, str, Dict[str, Any]]:
         status_selector = parsing.get("status_selector")
         if not status_selector:
-            return "erro", "", "status_selector ausente"
+            return "erro", "", "status_selector ausente", {
+                "status_selector": None,
+                "status_timeout_ms": parsing.get("status_timeout_ms", 12000),
+                "captured_text": "",
+            }
 
         status_timeout = parsing.get("status_timeout_ms", 12000)
         locator = page.locator(status_selector)
@@ -279,6 +339,7 @@ class BaseDriver:
 
         plan = ""
         plan_selector = parsing.get("plan_selector")
+        plan_text = ""
         if plan_selector:
             try:
                 plan_locator = page.locator(plan_selector).first
@@ -293,4 +354,27 @@ class BaseDriver:
         if not plan and status == "ativo" and message:
             plan = message
 
-        return status, plan, message
+        debug_info = {
+            "status_selector": status_selector,
+            "status_timeout_ms": status_timeout,
+            "captured_text": raw_text[:500],
+            "plan_selector": plan_selector,
+            "plan_text": plan_text[:500] if plan_text else "",
+            "decided_status": status,
+        }
+
+        return status, plan, message, debug_info
+
+    async def _capture_failure_artifact(self, page: Any) -> Optional[str]:
+        if page is None:
+            return None
+        try:
+            operator_dir = os.path.join(ERRORS_DIR, self.operator)
+            os.makedirs(operator_dir, exist_ok=True)
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            path = os.path.join(operator_dir, f"{ts}.png")
+            await page.screenshot(path=path, full_page=True)
+            return os.path.normpath(path)
+        except Exception as exc:
+            print(f"[{self.operator}] falha ao salvar screenshot de erro: {exc}")
+            return None
