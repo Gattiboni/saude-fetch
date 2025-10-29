@@ -12,23 +12,56 @@
   "steps": [
     { "wait": { "ms": 3500 } },
     {
-      "conditional": [
-        {
-          "if": { "exists": { "selector": ".NoCardAvailable--text", "text_contains": "não foi possível localizar os seus dados" } },
-          "then": [
-            { "set": { "result": "negative", "reason": "Não encontrado" } }
-          ]
-        },
-        {
-          "if": { "exists": { "selector": "img[src$='check-ok-green.svg']" } },
-          "then": [
-            { "set": { "result": "positive" } },
-            { "extract": { "plan_name": { "selector": "#NameIdenticadedUser strong", "attribute": "innerText", "optional": true } } }
-          ]
-        }
-      ]
+      "action": "navigate",
+      "target": "https://www.unimed.coop.br/site/guia-medico#/",
+      "wait_for_any": [
+        "#client-input",
+        "input[name*='cpf' i]",
+        "input[placeholder*='cpf' i]"
+      ],
+      "timeout_ms": 20000
+    },
+    {
+      "action": "fill",
+      "selector": "#client-input",
+      "value": "{identifier}",
+      "timeout_ms": 20000
+    },
+    {
+      "action": "wait_for",
+      "selector": [
+        "text=/UNIMED/i",
+        "#NameIdenticadedUser",
+        ".ClientInputWithLabel--text"
+      ],
+      "timeout_ms": 20000
     }
   ],
-  "loop": { "reenter_on": "next_input", "keep_page_open": true },
-  "errors": { "on_timeout": "retry_once_then_fail" }
+  "result_parsing": {
+    "status_selectors": [
+      "text=/UNIMED/i",
+      "#NameIdenticadedUser",
+      ".ClientInputWithLabel--text"
+    ],
+    "status_timeout_ms": 20000,
+    "status_poll_interval_ms": 300,
+    "positive_keywords": [
+      "UNIMED",
+      "PLANO",
+      "COOPERADO",
+      "BENEFICIÁRIO",
+      "ATIVO"
+    ],
+    "negative_keywords": [
+      "É CLIENTE? DIGITE SEU CPF OU CARTEIRINHA",
+      "INVÁLIDO",
+      "NÃO ENCONTRADO"
+    ],
+    "error_keywords": [
+      "ERRO",
+      "INVÁLIDO",
+      "NÃO ENCONTRADO"
+    ]
+  },
+  "notes": "O preenchimento do CPF dispara automaticamente a verificação. O driver inclui heurísticas adicionais para procurar rótulos UNIMED visíveis próximos ao campo."
 }

@@ -104,7 +104,7 @@ class BaseDriver:
             print(f"[drivers] using MAPPINGS_DIR: {MAPPINGS_DIR}")
             _PRINTED_MAPPINGS_DIR = True
 
-        self.mapping_path = os.path.join(MAPPINGS_DIR, f"{self.operator}.json")  # nomes em minúsculo
+        self.mapping_path = self._resolve_mapping_path()
 
         if os.path.exists(self.mapping_path):
             try:
@@ -117,12 +117,41 @@ class BaseDriver:
 
     def _load_mapping(self):
         """Permite reload sem recriar a instância."""
+        resolved_path = self._resolve_mapping_path()
+        if resolved_path != self.mapping_path:
+            print(
+                f"[{self.operator}] atualizando caminho do mapping para {resolved_path}"
+            )
+            self.mapping_path = resolved_path
         try:
             with open(self.mapping_path, "r", encoding="utf-8") as f:
                 self.mapping = json.load(f)
         except Exception as e:
             self.mapping = None
             print(f"[{self.operator}] erro no reload do mapping: {e}")
+
+    def _resolve_mapping_path(self) -> str:
+        """Resolve o caminho do mapping aceitando variações de nomenclatura."""
+        base_filename = f"{self.operator}.json"
+        candidates = [os.path.join(MAPPINGS_DIR, base_filename)]
+
+        collapsed = self.operator.replace("_", "")
+        if collapsed and collapsed != self.operator:
+            candidates.append(os.path.join(MAPPINGS_DIR, f"{collapsed}.json"))
+
+        dashed = self.operator.replace("_", "-")
+        if dashed and dashed not in {self.operator, collapsed}:
+            candidates.append(os.path.join(MAPPINGS_DIR, f"{dashed}.json"))
+
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                if candidate != candidates[0]:
+                    print(
+                        f"[{self.operator}] mapping encontrado usando variação de nome: {candidate}"
+                    )
+                return candidate
+
+        return candidates[0]
 
     async def consult(
         self,
