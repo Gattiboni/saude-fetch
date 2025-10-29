@@ -38,9 +38,13 @@ def _resolve_mappings_dir() -> str:
 
 MAPPINGS_DIR = _resolve_mappings_dir()
 _PRINTED_MAPPINGS_DIR = False
-ERRORS_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "errors")
-)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data"))
+ERRORS_DIR = os.path.normpath(os.path.join(DATA_DIR, "errors"))
+STORAGE_STATES_DIR = os.path.normpath(os.path.join(DATA_DIR, "storage_states"))
+
+os.makedirs(ERRORS_DIR, exist_ok=True)
+os.makedirs(STORAGE_STATES_DIR, exist_ok=True)
 
 FETCH_MIN_DELAY = float(os.getenv("FETCH_MIN_DELAY", "0.5"))
 FETCH_MAX_DELAY = float(os.getenv("FETCH_MAX_DELAY", "1.5"))
@@ -218,11 +222,25 @@ class BaseDriver:
     @asynccontextmanager
     async def _persistent_browser(self):
         playwright = await async_playwright().start()
-        chromium = await playwright.chromium.launch(headless=True)
-        context = await chromium.new_context()
+        chromium = await playwright.chromium.launch(
+            headless=True, args=["--ignore-certificate-errors"]
+        )
+
+        storage_file = os.path.join(STORAGE_STATES_DIR, f"{self.operator}.json")
+        context_kwargs = {"ignore_https_errors": True}
+        if os.path.exists(storage_file):
+            context_kwargs["storage_state"] = storage_file
+
+        context = await chromium.new_context(**context_kwargs)
         page = await context.new_page()
         try:
             yield page
+            try:
+                await context.storage_state(path=storage_file)
+            except Exception as exc:
+                logger.debug(
+                    "[%s] falha ao salvar storage state: %s", self.operator, exc
+                )
         finally:
             await context.close()
             await chromium.close()

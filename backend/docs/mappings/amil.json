@@ -17,9 +17,8 @@
       "action": "click",
       "selector": "#onetrust-accept-btn-handler, button[data-testid='accept-all'], button[aria-label*='aceitar' i], button:has-text('Aceitar')",
       "optional": true,
-      "timeout_ms": 8000,
-      "force": true,
-      "delay": 0.5
+      "timeout_ms": 500,
+      "force": true
     },
     {
       "action": "fill",

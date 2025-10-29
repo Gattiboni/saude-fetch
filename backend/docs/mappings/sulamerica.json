@@ -16,17 +16,15 @@
       "action": "click",
       "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], .sula-cookies button:has-text('Aceito'), .sula-cookies button:has-text('Aceitar'), .sula-cookies button:has-text('Entendi')",
       "optional": true,
-      "timeout_ms": 12000,
-      "force": true,
-      "delay": 0.3
+      "timeout_ms": 500,
+      "force": true
     },
     {
       "action": "click",
       "selector": ".sula-cookies-close, button:has-text('Fechar'), button:has-text('Entendi'), button:has-text('Prosseguir')",
       "optional": true,
-      "timeout_ms": 8000,
-      "force": true,
-      "delay": 0.2
+      "timeout_ms": 500,
+      "force": true
     },
     {
       "action": "fill",
@@ -41,10 +39,21 @@
       "timeout_ms": 15000
     },
     {
+      "action": "wait_for",
+      "selector": [
+        "#btnEntrar",
+        "button[type='submit']:has-text('Entrar')",
+        "button:has-text('Acessar')",
+        "button:has-text('Buscar')",
+        "button:has-text('Consultar')"
+      ],
+      "timeout_ms": 4000
+    },
+    {
       "action": "click",
       "selector": "button:has-text('Buscar'), button:has-text('Consultar'), button[type='submit']",
       "optional": true,
-      "timeout_ms": 15000,
+      "timeout_ms": 4000,
       "force": true
     },
     {

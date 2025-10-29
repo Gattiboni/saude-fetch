@@ -16,9 +16,8 @@
       "action": "click",
       "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar')",
       "optional": true,
-      "timeout_ms": 10000,
-      "force": true,
-      "delay": 0.3
+      "timeout_ms": 500,
+      "force": true
     },
     {
       "action": "fill",
