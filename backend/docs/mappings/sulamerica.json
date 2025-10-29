@@ -1,6 +1,6 @@
 {
   "operator": "sulamerica",
-  "url": "https://www.sulamericaseguros.com.br/guia-medico",
+  "url": "https://os11.sulamerica.com.br/SaudeCotador/LoginVendedor.aspx",
   "steps": [
     {
       "action": "navigate",
