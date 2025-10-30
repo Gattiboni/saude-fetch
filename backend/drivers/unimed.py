@@ -4,6 +4,7 @@ from .base import BaseDriver, normalize_text
 
 
 class UnimedDriver(BaseDriver):
+    """Driver para Unimed, usando o mapping docs/mappings/unimed.json"""
     def __init__(self):
         super().__init__("unimed", supported_id_types=("cpf",))
 

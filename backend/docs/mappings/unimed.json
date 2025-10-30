@@ -1,6 +1,14 @@
 {
-  "operator": "unimed",
-  "url": "https://www.unimed.coop.br/site/guia-medico#/",
+  "meta": { "provider": "unimed", "task": "cpf-eligibility", "version": "1.0.0" },
+  "navigate": {
+    "url": "https://www.unimed.coop.br/site/guia-medico#/",
+    "expand_recursively": true,
+    "reuse_page": true,
+    "geolocation": "allow_if_asked"
+  },
+  "inputs": {
+    "cpf": { "selector": "#client-input", "type": "text", "mask": "cpf", "submit": "none", "clear": true }
+  },
   "steps": [
     {
       "action": "navigate",

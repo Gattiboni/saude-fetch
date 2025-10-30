@@ -1,0 +1,33 @@
+{
+  "meta": { "provider": "seguros-unimed", "task": "cpf-eligibility", "version": "1.0.0" },
+  "navigate": {
+    "url": "https://www.segurosunimed.com.br/guia-medico/",
+    "expand_recursively": true,
+    "reuse_page": true
+  },
+  "inputs": {
+    "cpf": { "selector": "input[placeholder='Informe o CPF ou número do cartão']", "type": "text", "mask": "cpf", "submit": "none", "clear": true }
+  },
+  "steps": [
+    { "wait": { "ms": 3000 } },
+    {
+      "conditional": [
+        {
+          "if": { "exists": { "selector": "p.s-input-feedback.s-input-feedback-invalid", "text_contains": "Não localizamos plano para o CPF informado" } },
+          "then": [
+            { "set": { "result": "negative", "reason": "Não localizamos plano" } }
+          ]
+        },
+        {
+          "if": { "exists": { "selector": ".col-lg-4.d-flex.flex-row.align-items-center.mb-4 > p.s-text.s-text-secondary" } },
+          "then": [
+            { "set": { "result": "positive" } },
+            { "extract": { "plan_name": { "selector": ".col-lg-4.d-flex.flex-row.align-items-center.mb-4 > p.s-text.s-text-secondary", "attribute": "innerText" } } }
+          ]
+        }
+      ]
+    }
+  ],
+  "loop": { "reenter_on": "next_input", "keep_page_open": true },
+  "errors": { "on_timeout": "retry_once_then_fail" }
+}

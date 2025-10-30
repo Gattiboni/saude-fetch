@@ -28,16 +28,35 @@ _operator_locks: Dict[str, asyncio.Semaphore] = defaultdict(default_lock_factory
 
 class DriverManager:
     def __init__(self) -> None:
-        self._drivers: List[BaseDriver] = [
-            UnimedDriver(),
-            AmilDriver(),
-            BradescoDriver(),
-            SegurosUnimedDriver(),
-            SulamericaDriver(),
-        ]
+        # Instantiate driver objects (assumes drivers implement required async methods)
+        self._drivers: Dict[str, BaseDriver] = {
+            "amil": AmilDriver(),
+            "bradesco": BradescoDriver(),
+            "unimed": UnimedDriver(),
+            "seguros_unimed": SegurosUnimedDriver(),
+        }
+
+        # semaphores
+        self._global_sem = asyncio.Semaphore(MAX_CONCURRENCY)
+        self._per_operator_sem: Dict[str, asyncio.Semaphore] = {
+            name: asyncio.Semaphore(PER_OPERATOR_CONCURRENCY) for name in self._drivers.keys()
+        }
+
+    # basic accessors
+    def get(self, operator: str) -> BaseDriver:
+        op = (operator or "").strip().lower()
+        if op not in self._drivers:
+            raise KeyError(f"Operadora não suportada: {operator}")
+        return self._drivers[op]
+
+    def names(self) -> Iterable[str]:
+        return self._drivers.keys()
+
+    def items(self):
+        return self._drivers.items()
 
     @property
-    def drivers(self) -> List[BaseDriver]:
+    def drivers(self):
         return self._drivers
 
     def reload(self) -> None:
