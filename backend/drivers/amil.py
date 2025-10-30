@@ -87,9 +87,23 @@ class AmilDriver(BaseDriver):
                 )
 
             self.step("Buscando input associado ao texto encontrado")
-            cpf_input = await page_obj.query_selector(
-                "input[placeholder*='Beneficiário'], input[name='cpf'], input[type='text']"
+
+            cpf_locator = page_obj.locator(
+                "section:has-text('Passo 1') input[placeholder*='Beneficiário'], "
+                "div[class*='step']:has-text('Selecione o plano ou rede') input[placeholder*='Beneficiário']"
             )
+            cpf_input = None
+            try:
+                if await cpf_locator.count():
+                    cpf_input = await cpf_locator.nth(0).element_handle()
+            except Exception:
+                cpf_input = None
+
+            if cpf_input is None:
+                cpf_input = await page_obj.query_selector(
+                    "form input[placeholder*='Beneficiário'][type='text']"
+                )
+
             if cpf_input is None:
                 cpf_input_handle = await page_obj.evaluate_handle(
                     """
@@ -98,11 +112,15 @@ class AmilDriver(BaseDriver):
                         while (walker.nextNode()) {
                             const txt = walker.currentNode.textContent || '';
                             if (txt.includes('Beneficiário') || txt.includes('Beneficiario')) {
-                                let el = walker.currentNode.parentElement;
-                                for (let i = 0; i < 5; i++) {
-                                    el = el?.nextElementSibling || el?.parentElement?.querySelector('input');
-                                    if (el && el.tagName === 'INPUT') {
-                                        return el;
+                                let scope = walker.currentNode.parentElement;
+                                const container =
+                                    scope?.closest('section') ||
+                                    scope?.closest(\"div[class*='step']\") ||
+                                    scope;
+                                if (container) {
+                                    const candidate = container.querySelector(\"input[placeholder*='Beneficiário']\");
+                                    if (candidate && candidate.tagName === 'INPUT') {
+                                        return candidate;
                                     }
                                 }
                             }
@@ -112,10 +130,10 @@ class AmilDriver(BaseDriver):
                     """
                 )
                 if cpf_input_handle is None:
-                    raise Exception("Input de CPF não encontrado mesmo após varredura de texto.")
+                    raise Exception("Campo 'Nº do Beneficiário ou CPF' não encontrado no formulário principal.")
                 cpf_input = cpf_input_handle.as_element()
                 if cpf_input is None:
-                    raise Exception("Handle retornado não é um elemento de input.")
+                    raise Exception("Handle retornado não é um elemento de input válido.")
 
             placeholder = await cpf_input.get_attribute("placeholder") or ""
             self.step(
