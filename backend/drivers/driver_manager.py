@@ -1,16 +1,18 @@
 import asyncio
+import logging
 import os
 import time
 from collections import defaultdict
-from typing import Awaitable, Callable, Dict, List, Optional
+from typing import Awaitable, Callable, Dict, List, Optional, Iterable
 
 from .amil import AmilDriver
 from .bradesco import BradescoDriver
 from .seguros_unimed import SegurosUnimedDriver
-from .sulamerica import SulamericaDriver
 from .unimed import UnimedDriver
 from .base import BaseDriver, DriverResult
 from utils.metrics import record_metric
+
+logger = logging.getLogger("saude_fetch.driver_manager")
 
 try:
     from db.cache import Cache
@@ -82,11 +84,16 @@ class DriverManager:
         results: List[DriverResult] = []
         active_drivers = [
             driver
-            for driver in self._drivers
+            for driver in self._drivers.values()
             if id_type in getattr(driver, "supported_id_types", ("cpf",))
         ]
 
-        for driver in active_drivers:
+        for name, driver in self._drivers.items():
+            if driver not in active_drivers:
+                continue
+            logger.info(
+                f"🚀 Iniciando driver {driver.operator} com {len(identifiers)} CPFs"
+            )
             print(
                 f"[{driver.operator}] iniciando consultas em lote ({len(identifiers)} itens)"
             )
@@ -101,6 +108,8 @@ class DriverManager:
                 )
                 results.extend(batch_results)
             except Exception as exc:
+                logger.error(f"⚠️ Erro no {driver.operator}: {exc}")
+                print(f"[DEBUG] ⚠️ {driver.operator} falhou: {exc}")
                 print(f"[{driver.operator}] falha no lote: {exc}")
                 for identifier in identifiers:
                     results.append(
@@ -147,9 +156,15 @@ class DriverManager:
                                     debug=cached_data.get("debug", {}),
                                     identifier=identifier,
                                     id_type=id_type,
-                                )
+                        )
 
                         if cached_result is not None:
+                            logger.info(
+                                f"✅ {driver.operator} retornou (cache): {cached_result}"
+                            )
+                            print(
+                                f"[DEBUG] {driver.operator} retorno (cache) -> {cached_result}"
+                            )
                             results.append(cached_result)
                             if db is not None:
                                 await record_metric(
@@ -166,12 +181,20 @@ class DriverManager:
                                 )
                             continue
 
+                        logger.info(
+                            f"🧩 Executando {driver.operator} para {identifier}"
+                        )
+                        print(
+                            f"[DEBUG] {driver.operator}: processando {identifier}"
+                        )
                         start = time.perf_counter()
                         try:
                             result = await driver.consult(
                                 identifier, id_type, page=page
                             )
                         except Exception as exc:
+                            logger.error(f"⚠️ Erro no {driver.operator}: {exc}")
+                            print(f"[DEBUG] ⚠️ {driver.operator} falhou: {exc}")
                             result = DriverResult(
                                 operator=driver.operator,
                                 status="erro",
@@ -183,6 +206,8 @@ class DriverManager:
                             )
                         duration = time.perf_counter() - start
                         results.append(result)
+                        logger.info(f"✅ {driver.operator} retornou: {result}")
+                        print(f"[DEBUG] {driver.operator} retorno -> {result}")
 
                         if cache is not None and self._should_cache_result(result):
                             try:
@@ -214,6 +239,8 @@ class DriverManager:
                         if progress_callback:
                             await progress_callback(identifier, driver, result, False)
         except Exception as exc:
+            logger.error(f"⚠️ Erro no {driver.operator}: {exc}")
+            print(f"[DEBUG] ⚠️ {driver.operator} falhou: {exc}")
             print(f"[{driver.operator}] erro no navegador persistente: {exc}")
         return results
 

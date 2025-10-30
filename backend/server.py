@@ -1,16 +1,13 @@
 import json
-import json
 import os
 import uuid
-from collections import defaultdict
+import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -19,19 +16,25 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
+LIVE_DEBUG_ENABLED = os.getenv("LIVE_DEBUG", "false").lower() == "true"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("saude_fetch")
+if LIVE_DEBUG_ENABLED:
+    logger.setLevel(logging.DEBUG)
+
 from drivers.driver_manager import manager as driver_manager
 from drivers.base import BaseDriver, DriverResult
-from drivers.sulamerica import SulamericaDriver
-from drivers.base import BaseDriver, DriverResult
-from drivers.sulamerica import SulamericaDriver
 from utils.logger import JobLogger
 from utils.auth import create_access_token, verify_token, check_credentials, AuthError
 from utils.validators import validate_cpf_cnpj
 from db.cache import Cache
 from bson import ObjectId
-from utils.validators import validate_cpf_cnpj
-from db.cache import Cache
-from bson import ObjectId
+
+CNPJ_PIPELINE_ENABLED = False
 
 
 # --- APP PRINCIPAL ---
@@ -63,19 +66,22 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "data", "uploads")
 EXPORT_DIR = os.path.join(BASE_DIR, "data", "exports")
 LOGS_DIR = os.path.join(BASE_DIR, "data", "logs")
 ERRORS_DIR = os.path.join(BASE_DIR, "data", "errors")
-ERRORS_DIR = os.path.join(BASE_DIR, "data", "errors")
 LAST_RUN_LOG = os.path.join(LOGS_DIR, "last_run.log")
 
-CNPJ_EXPORT_PATH = os.path.join(EXPORT_DIR, "sulamerica_cnpj.xlsx")
-CNPJ_LOG_FILE = os.path.join(LOGS_DIR, "sulamerica_cnpj.log")
-CNPJ_ERROR_DIR = os.path.join(ERRORS_DIR, "sulamerica")
+if CNPJ_PIPELINE_ENABLED:
+    CNPJ_EXPORT_PATH: Optional[str] = os.path.join(EXPORT_DIR, "sulamerica_cnpj.xlsx")
+    CNPJ_LOG_FILE: Optional[str] = os.path.join(LOGS_DIR, "sulamerica_cnpj.log")
+    CNPJ_ERROR_DIR = os.path.join(ERRORS_DIR, "sulamerica")
+else:
+    CNPJ_EXPORT_PATH = None
+    CNPJ_LOG_FILE = None
+    CNPJ_ERROR_DIR = os.path.join(ERRORS_DIR, "sulamerica")
 
-for d in [UPLOAD_DIR, EXPORT_DIR, LOGS_DIR, ERRORS_DIR, CNPJ_ERROR_DIR]:
-CNPJ_EXPORT_PATH = os.path.join(EXPORT_DIR, "sulamerica_cnpj.xlsx")
-CNPJ_LOG_FILE = os.path.join(LOGS_DIR, "sulamerica_cnpj.log")
-CNPJ_ERROR_DIR = os.path.join(ERRORS_DIR, "sulamerica")
+_required_dirs = [UPLOAD_DIR, EXPORT_DIR, LOGS_DIR, ERRORS_DIR]
+if CNPJ_PIPELINE_ENABLED:
+    _required_dirs.append(CNPJ_ERROR_DIR)
 
-for d in [UPLOAD_DIR, EXPORT_DIR, LOGS_DIR, ERRORS_DIR, CNPJ_ERROR_DIR]:
+for d in _required_dirs:
     os.makedirs(d, exist_ok=True)
 
 # --- Mongo ---
@@ -101,10 +107,6 @@ class JobOut(BaseModel):
 
 class JobList(BaseModel):
     items: List[JobOut]
-
-
-class CnpjRequest(BaseModel):
-    cnpjs: List[str]
 
 
 class CnpjRequest(BaseModel):
@@ -384,6 +386,14 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
 # --- CNPJ PIPELINE ---
 @app.post("/api/fetch/cnpj")
 async def fetch_cnpj(data: CnpjRequest, user: str = Depends(require_auth)):
+    if not CNPJ_PIPELINE_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="Pipeline CNPJ desativado temporariamente.",
+        )
+
+    from drivers.sulamerica import SulamericaDriver
+
     driver = SulamericaDriver()
     rows: List[Dict[str, Any]] = []
     ativos = 0
@@ -438,7 +448,8 @@ async def fetch_cnpj(data: CnpjRequest, user: str = Depends(require_auth)):
             }
         )
 
-    build_cnpj_xlsx(rows, CNPJ_EXPORT_PATH)
+    if CNPJ_EXPORT_PATH:
+        build_cnpj_xlsx(rows, CNPJ_EXPORT_PATH)
 
     summary = {
         "total": len(rows),
@@ -464,98 +475,11 @@ async def fetch_cnpj(data: CnpjRequest, user: str = Depends(require_auth)):
 
 @app.get("/api/fetch/cnpj/export")
 async def download_cnpj_export(user: str = Depends(require_auth)):
-    if not os.path.exists(CNPJ_EXPORT_PATH):
-        raise HTTPException(status_code=404, detail="Export not found")
-    return FileResponse(
-        CNPJ_EXPORT_PATH,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename="sulamerica_cnpj.xlsx",
-    )
-
-
-# --- CNPJ PIPELINE ---
-@app.post("/api/fetch/cnpj")
-async def fetch_cnpj(data: CnpjRequest, user: str = Depends(require_auth)):
-    driver = SulamericaDriver()
-    rows: List[Dict[str, Any]] = []
-    ativos = 0
-    inativos = 0
-    erros = 0
-
-    for raw in data.cnpjs:
-        digits = clean_identifier(raw)
-        captured_at = datetime.utcnow().isoformat()
-        if len(digits) != 14:
-            status = "invalid"
-            mensagem = "CNPJ inválido"
-            plano = ""
-            debug = {"reason": "invalid_length"}
-        else:
-            try:
-                result = await driver.consult(digits, "cnpj")
-                status = result.status
-                plano = result.plan
-                mensagem = result.message or result.plan or ""
-                debug = result.debug
-            except Exception as exc:
-                status = "erro"
-                plano = ""
-                mensagem = str(exc)
-                debug = {"exception": str(exc)}
-
-        if status == "ativo":
-            ativos += 1
-        elif status == "inativo":
-            inativos += 1
-        elif status not in ("invalid", "indefinido"):
-            erros += 1
-
-        row = {
-            "cnpj": digits,
-            "status": status,
-            "mensagem_portal": mensagem,
-            "plano": plano,
-            "captured_at": captured_at,
-            "debug": debug,
-        }
-        rows.append(row)
-        append_cnpj_log(
-            {
-                "event": "cnpj_result",
-                "cnpj": digits,
-                "status": status,
-                "mensagem": mensagem,
-                "plano": plano,
-                "debug": debug,
-            }
+    if not CNPJ_PIPELINE_ENABLED or not CNPJ_EXPORT_PATH:
+        raise HTTPException(
+            status_code=503,
+            detail="Pipeline CNPJ desativado temporariamente.",
         )
-
-    build_cnpj_xlsx(rows, CNPJ_EXPORT_PATH)
-
-    summary = {
-        "total": len(rows),
-        "ativos": ativos,
-        "inativos": inativos,
-        "erros": erros,
-        "resultados": [
-            {
-                "cnpj": format_cnpj(row["cnpj"]),
-                "status": row["status"],
-                "mensagem_portal": row["mensagem_portal"],
-                "plano": row["plano"],
-                "timestamp": row["captured_at"],
-            }
-            for row in rows
-        ],
-    }
-
-    append_cnpj_log({"event": "cnpj_summary", **summary})
-
-    return summary
-
-
-@app.get("/api/fetch/cnpj/export")
-async def download_cnpj_export(user: str = Depends(require_auth)):
     if not os.path.exists(CNPJ_EXPORT_PATH):
         raise HTTPException(status_code=404, detail="Export not found")
     return FileResponse(
@@ -574,15 +498,6 @@ def format_cpf(cpf_digits: str) -> str:
     if len(cpf_digits) != 11:
         return cpf_digits
     return f"{cpf_digits[0:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:11]}"
-
-
-def format_cnpj(cnpj_digits: str) -> str:
-    if len(cnpj_digits) != 14:
-        return cnpj_digits
-    return (
-        f"{cnpj_digits[0:2]}.{cnpj_digits[2:5]}.{cnpj_digits[5:8]}/"
-        f"{cnpj_digits[8:12]}-{cnpj_digits[12:14]}"
-    )
 
 
 def format_cnpj(cnpj_digits: str) -> str:
@@ -613,39 +528,18 @@ def to_rows(df: pd.DataFrame, forced_type: str) -> List[str]:
 
 
 def append_cnpj_log(record: Dict[str, Any]) -> None:
+    if not CNPJ_PIPELINE_ENABLED or not CNPJ_LOG_FILE:
+        return
+
     payload = {**record, "time": datetime.utcnow().isoformat()}
     with open(CNPJ_LOG_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
-def build_cnpj_xlsx(rows: List[Dict[str, Any]], out_path: str) -> None:
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Consulta CNPJ"
-    ws.append(["CNPJ", "STATUS", "MENSAGEM", "PLANO", "TIMESTAMP"])
-    for row in rows:
-        ws.append(
-            [
-                format_cnpj(str(row.get("cnpj", ""))),
-                row.get("status", ""),
-                row.get("mensagem_portal", ""),
-                row.get("plano", ""),
-                row.get("captured_at", ""),
-            ]
-        )
-    for cell in ws["A"]:
-        cell.number_format = "@"
-        cell.alignment = Alignment(horizontal="left")
-    wb.save(out_path)
+def build_cnpj_xlsx(rows: List[Dict[str, Any]], out_path: Optional[str]) -> None:
+    if not CNPJ_PIPELINE_ENABLED or not out_path:
+        return
 
-
-def append_cnpj_log(record: Dict[str, Any]) -> None:
-    payload = {**record, "time": datetime.utcnow().isoformat()}
-    with open(CNPJ_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
-
-
-def build_cnpj_xlsx(rows: List[Dict[str, Any]], out_path: str) -> None:
     wb = Workbook()
     ws = wb.active
     ws.title = "Consulta CNPJ"
@@ -670,15 +564,17 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
     db = await get_db()
     cache = Cache(db)
     cache = Cache(db)
-    logger = JobLogger(job_id, LOGS_DIR)
+    job_logger = JobLogger(job_id, LOGS_DIR)
     job_started_at = datetime.utcnow().isoformat()
     detailed_entries: List[Dict[str, Any]] = []
     await db.job_results.delete_many({"job_id": job_id})
-    logger.info("job_started", job_id=job_id, file_path=path, forced_type=forced_type)
+    job_logger.info("job_started", job_id=job_id, file_path=path, forced_type=forced_type)
+    logger.info(f"[LIVE] Status atual do job: {job_id} - started")
     job_started_at = datetime.utcnow().isoformat()
     detailed_entries: List[Dict[str, Any]] = []
     await db.job_results.delete_many({"job_id": job_id})
-    logger.info("job_started", job_id=job_id, file_path=path, forced_type=forced_type)
+    job_logger.info("job_started", job_id=job_id, file_path=path, forced_type=forced_type)
+    logger.info(f"[LIVE] Status atual do job: {job_id} - started")
     try:
         ext = os.path.splitext(path)[1].lower()
         if ext == ".csv":
@@ -700,7 +596,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
         error = 0
         processed = 0
         drivers = driver_manager.drivers
-        logger.info("identifiers_loaded", total=total)
+        job_logger.info("identifiers_loaded", total=total)
 
         invalid_identifiers: List[str] = []
         grouped: Dict[str, List[str]] = defaultdict(list)
@@ -742,7 +638,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             detailed_entries.append(detail_entry)
             error += 1
             processed += 1
-            logger.error("identifier_invalid", identifier=ident, id_type="invalid")
+            job_logger.error("identifier_invalid", identifier=ident, id_type="invalid")
             await update_job_progress()
 
         identifier_meta: Dict[str, Dict[str, Any]] = {}
@@ -767,76 +663,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                 detailed_entries.append(detail_entry)
                 error += 1
                 processed += 1
-                logger.error(
-                    "identifier_without_result",
-                    identifier=identifier,
-                    id_type=meta.get("id_type", forced_type),
-                )
-                await update_job_progress()
-                return
-
-            has_success = any(
-                entry.status.lower() not in {"erro", "invalid"} for entry in entries
-            )
-            if has_success:
-                invalid_identifiers.append(ident)
-                continue
-            grouped[itype].append(ident)
-
-        async def update_job_progress():
-            await db.jobs.update_one(
-                {"_id": job_id},
-                {
-                    "$set": {
-                        "processed": processed,
-                        "success": success,
-                        "error": error,
-                        "total": total,
-                    }
-                },
-            )
-
-        for ident in invalid_identifiers:
-            detail_entry = {
-                "input": ident,
-                "type": "invalid",
-                "operator": "",
-                "status": "invalid",
-                "plan": "",
-                "message": "identificador inválido",
-                "captured_at": datetime.utcnow().isoformat(),
-                "debug": {"reason": "invalid_identifier"},
-            }
-            results.append(detail_entry)
-            detailed_entries.append(detail_entry)
-            error += 1
-            processed += 1
-            logger.error("identifier_invalid", identifier=ident, id_type="invalid")
-            await update_job_progress()
-
-        identifier_meta: Dict[str, Dict[str, Any]] = {}
-        results_buffer: Dict[str, List[DriverResult]] = defaultdict(list)
-
-        async def finalize_identifier(identifier: str) -> None:
-            nonlocal success, error, processed
-            meta = identifier_meta.pop(identifier, {"id_type": forced_type, "expected": 0})
-            entries = results_buffer.pop(identifier, [])
-            if not entries:
-                detail_entry = {
-                    "input": identifier,
-                    "type": meta.get("id_type", forced_type),
-                    "operator": "",
-                    "status": "erro",
-                    "plan": "",
-                    "message": "sem resultado",
-                    "captured_at": datetime.utcnow().isoformat(),
-                    "debug": {"reason": "no_result"},
-                }
-                results.append(detail_entry)
-                detailed_entries.append(detail_entry)
-                error += 1
-                processed += 1
-                logger.error(
+                job_logger.error(
                     "identifier_without_result",
                     identifier=identifier,
                     id_type=meta.get("id_type", forced_type),
@@ -868,7 +695,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                 detailed_entries.append(detail_entry)
 
             await update_job_progress()
-            logger.info(
+            job_logger.info(
                 "identifier_processed",
                 identifier=identifier,
                 id_type=meta.get("id_type", forced_type),
@@ -886,7 +713,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             if from_cache:
                 debug_info["cache_hit"] = True
             result.debug = debug_info
-            logger.info(
+            job_logger.info(
                 "driver_result",
                 identifier=identifier,
                 id_type=meta.get("id_type", forced_type),
@@ -925,13 +752,22 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     detailed_entries.append(detail_entry)
                     error += 1
                     processed += 1
-                    logger.error(
+                    job_logger.error(
                         "identifier_unsupported",
                         identifier=ident,
                         id_type=id_type,
                     )
                     await update_job_progress()
                 continue
+
+            for drv in active_drivers:
+                driver_name = getattr(drv, "operator", getattr(drv, "name", "unknown"))
+                logger.info(
+                    f"🚀 Iniciando driver {driver_name} com {len(identifiers)} CPFs"
+                )
+                print(
+                    f"[DEBUG] Rodando driver: {driver_name} - {len(identifiers)} CPFs"
+                )
 
             expected = len(active_drivers)
             for ident in identifiers:
@@ -968,7 +804,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                 detailed_entries.append(detail_entry)
 
             await update_job_progress()
-            logger.info(
+            job_logger.info(
                 "identifier_processed",
                 identifier=identifier,
                 id_type=meta.get("id_type", forced_type),
@@ -986,7 +822,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             if from_cache:
                 debug_info["cache_hit"] = True
             result.debug = debug_info
-            logger.info(
+            job_logger.info(
                 "driver_result",
                 identifier=identifier,
                 id_type=meta.get("id_type", forced_type),
@@ -1025,13 +861,22 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     detailed_entries.append(detail_entry)
                     error += 1
                     processed += 1
-                    logger.error(
+                    job_logger.error(
                         "identifier_unsupported",
                         identifier=ident,
                         id_type=id_type,
                     )
                     await update_job_progress()
                 continue
+
+            for drv in active_drivers:
+                driver_name = getattr(drv, "operator", getattr(drv, "name", "unknown"))
+                logger.info(
+                    f"🚀 Iniciando driver {driver_name} com {len(identifiers)} CPFs"
+                )
+                print(
+                    f"[DEBUG] Rodando driver: {driver_name} - {len(identifiers)} CPFs"
+                )
 
             expected = len(active_drivers)
             for ident in identifiers:
@@ -1079,16 +924,17 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             started_at=job_started_at,
             finished_at=job_finished_at,
             job_type=forced_type,
-            job_log_path=logger.path,
+            job_log_path=job_logger.path,
         )
 
-        logger.info(
+        job_logger.info(
             "job_completed",
             total=total,
             success=success,
             error=error,
             xlsx_path=xlsx_path,
         )
+        logger.info(f"[LIVE] Status atual do job: {job_id} - completed")
         if results:
             docs = []
             for row in results:
@@ -1111,16 +957,17 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             started_at=job_started_at,
             finished_at=job_finished_at,
             job_type=forced_type,
-            job_log_path=logger.path,
+            job_log_path=job_logger.path,
         )
 
-        logger.info(
+        job_logger.info(
             "job_completed",
             total=total,
             success=success,
             error=error,
             xlsx_path=xlsx_path,
         )
+        logger.info(f"[LIVE] Status atual do job: {job_id} - completed")
 
         await db.jobs.update_one(
             {"_id": job_id},
@@ -1133,7 +980,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     "processed": processed,
                     "completed_at": datetime.utcnow().isoformat(),
                     "xlsx_path": xlsx_path,
-                    "job_log_path": logger.path,
+                    "job_log_path": job_logger.path,
                 }
             },
         )
@@ -1148,12 +995,13 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     "processed": processed,
                     "completed_at": datetime.utcnow().isoformat(),
                     "xlsx_path": xlsx_path,
-                    "job_log_path": logger.path,
+                    "job_log_path": job_logger.path,
                 }
             },
         )
     except Exception as e:
-        logger.error("job_failed", error=str(e))
+        job_logger.error("job_failed", error=str(e))
+        logger.info(f"[LIVE] Status atual do job: {job_id} - failed")
         write_last_run_log(
             job_id,
             0,
@@ -1166,7 +1014,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             started_at=job_started_at,
             finished_at=datetime.utcnow().isoformat(),
             job_type=forced_type,
-            job_log_path=logger.path,
+            job_log_path=job_logger.path,
         )
         await db.jobs.update_one(
             {"_id": job_id},
@@ -1175,11 +1023,12 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     "status": "failed",
                     "error_message": str(e),
                     "completed_at": datetime.utcnow().isoformat(),
-                    "job_log_path": logger.path,
+                    "job_log_path": job_logger.path,
                 }
             },
         )
-        logger.error("job_failed", error=str(e))
+        job_logger.error("job_failed", error=str(e))
+        logger.info(f"[LIVE] Status atual do job: {job_id} - failed")
         write_last_run_log(
             job_id,
             0,
@@ -1192,7 +1041,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             started_at=job_started_at,
             finished_at=datetime.utcnow().isoformat(),
             job_type=forced_type,
-            job_log_path=logger.path,
+            job_log_path=job_logger.path,
         )
         await db.jobs.update_one(
             {"_id": job_id},
@@ -1201,7 +1050,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                     "status": "failed",
                     "error_message": str(e),
                     "completed_at": datetime.utcnow().isoformat(),
-                    "job_log_path": logger.path,
+                    "job_log_path": job_logger.path,
                 }
             },
         )
@@ -1237,21 +1086,6 @@ def build_xlsx_from_results(df: pd.DataFrame, out_path: str):
     wb.save(out_path)
 
 
-def write_last_run_log(
-    job_id: str,
-    total: int,
-    success: int,
-    error: int,
-    csv_path: Optional[str],
-    xlsx_path: Optional[str],
-    *,
-    error_message: Optional[str] = None,
-    details: Optional[List[Dict[str, Any]]] = None,
-    started_at: Optional[str] = None,
-    finished_at: Optional[str] = None,
-    job_type: str = "auto",
-    job_log_path: Optional[str] = None,
-) -> None:
 def write_last_run_log(
     job_id: str,
     total: int,

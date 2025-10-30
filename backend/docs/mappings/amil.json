@@ -1,98 +1,46 @@
 {
-  "meta": { "provider": "amil", "task": "cpf-eligibility", "version": "1.0.0" },
+  "meta": { "provider": "amil", "task": "cpf-eligibility", "version": "1.0.2" },
   "navigate": {
     "url": "https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada",
     "expand_recursively": true,
-    "reuse_page": true,
-    "accept_cookies": { "selector": "#onetrust-accept-btn-handler", "action": "click", "optional": true, "timeout_ms": 5000 }
-  },
-  "inputs": {
-    "cpf": { "selector": "#cpf_input", "type": "text", "mask": "cpf", "submit": "enter", "clear": true, "timeout_ms": 120000 }
+    "wait_for_react": true,
+    "reuse_page": true
   },
   "steps": [
     {
-      "action": "navigate",
-      "target": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
-      "wait_for_any": [
-        "input[placeholder*='cpf' i]",
-        "input[name*='cpf' i]",
-        "input[id*='cpf' i]",
-        "#cpf_input"
-      ],
-      "timeout_ms": 20000
-    },
-    {
-      "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[data-testid='accept-all'], button[aria-label*='aceitar' i], button:has-text('Aceitar')",
-      "optional": true,
-      "timeout_ms": 500,
-      "force": true
-    },
-    {
-      "action": "fill",
-      "selector": "input[placeholder*='cpf' i]",
-      "value": "{identifier}",
-      "timeout_ms": 20000
-    },
-    {
-      "action": "keypress",
-      "selector": "input[placeholder*='cpf' i]",
-      "key": "Enter",
-      "timeout_ms": 12000
+      "action": "click_if_exists",
+      "selector": "legend.d-none + div.collapse:not(.show) .accordion-button, legend.d-none",
+      "description": "Expandir painel do Passo 1 se estiver colapsado"
     },
     {
       "action": "wait_for",
-      "selector": [
-        "text=/plano/i",
-        "text=/rede/i",
-        "text=/beneficiário/i",
-        "text=/campo obrigatório/i",
-        "#plan-input_input .rw-input",
-        ".input-redux__error span",
-        ".input-redux__error"
+      "selector": "div.collapse.show input[name='cpf']",
+      "timeout_ms": 8000,
+      "description": "Aguardar campo de CPF visível após expansão"
+    },
+    {
+      "action": "fill",
+      "selector": "div.collapse.show input[name='cpf']",
+      "value": "{identifier}",
+      "description": "Preencher CPF"
+    },
+    {
+      "action": "press",
+      "key": "Enter",
+      "description": "Pressionar ENTER após preencher CPF"
+    },
+    {
+      "action": "wait_for_any",
+      "selectors": [
+        "div.modal-content",
+        "div.rw-dropdown-list-input"
       ],
-      "timeout_ms": 20000
+      "timeout_ms": 8000,
+      "description": "Aguardar retorno da consulta"
     }
   ],
   "result_parsing": {
-    "status_selectors": [
-      "text=/plano/i",
-      "text=/rede/i",
-      "text=/beneficiário/i",
-      "text=/campo obrigatório/i",
-      "#plan-input_input .rw-input",
-      ".input-redux__error span",
-      ".input-redux__error"
-    ],
-    "status_timeout_ms": 20000,
-    "status_poll_interval_ms": 400,
-    "positive_keywords": [
-      "rede",
-      "plano",
-      "beneficiário",
-      "ouro",
-      "prata",
-      "bronze",
-      "ativo"
-    ],
-    "negative_keywords": [
-      "campo obrigatório",
-      "cpf inválido",
-      "não encontramos",
-      "preencha",
-      "inválido"
-    ],
-    "error_keywords": [
-      "erro",
-      "indisponível",
-      "tente novamente"
-    ],
-    "plan_selectors": [
-      "#plan-input_input .rw-input",
-      ".rw-dropdown-list-input",
-      "text=/plano/i"
-    ],
-    "plan_optional": true
-  },
-  "notes": "Fluxo ajustado para tolerar variações de placeholders e mensagens inline. Após enviar o CPF com Enter, o componente #plan-input_input exibe o nome do plano; mensagens inline com '.input-redux__error' sinalizam entradas inválidas."
+    "negative_selector": "div.modal-content:has-text('não encontramos')",
+    "positive_selector": "div.rw-dropdown-list-input"
+  }
 }

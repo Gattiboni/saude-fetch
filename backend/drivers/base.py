@@ -130,6 +130,14 @@ class BaseDriver:
             self.mapping = None
             print(f"[{self.operator}] erro no reload do mapping: {e}")
 
+    def step(self, message: str) -> None:
+        logger.debug(f"[{self.operator}] {message}")
+        print(f"[DEBUG] [{self.operator}] {message}")
+
+    def log_exception(self, error: Exception) -> None:
+        logger.error(f"[{self.operator}] ERRO durante execução: {error}")
+        print(f"[DEBUG] [{self.operator}] ERRO durante execução: {error}")
+
     def _resolve_mapping_path(self) -> str:
         """Resolve o caminho do mapping aceitando variações de nomenclatura."""
         base_filename = f"{self.operator}.json"
@@ -160,43 +168,52 @@ class BaseDriver:
         page: Optional[Any] = None,
     ) -> DriverResult:
         if id_type not in self.supported_id_types:
-            raise ValueError(f"{self.operator} não suporta identificador do tipo '{id_type}'")
+            raise ValueError(f"{self.operator} nao suporta identificador do tipo '{id_type}'")
 
-        # throttle + retries genéricos
+        self.step(f"Iniciando consulta para {id_type.upper()} {identifier}")
+
         for attempt in range(MAX_RETRIES):
             try:
+                self.step(f"Tentativa {attempt + 1}/{MAX_RETRIES} para {identifier}")
                 await asyncio.sleep(random.uniform(FETCH_MIN_DELAY, FETCH_MAX_DELAY))
+                self.step("Disparando fluxo principal do driver")
                 result = await self._perform(identifier, id_type, page=page)
                 if not result.identifier:
                     result.identifier = identifier
                 if not result.id_type:
                     result.id_type = id_type
+                self.step(
+                    f"Resultado final: status={result.status} | plano={result.plan or '-'} | mensagem={result.message or '-'}"
+                )
                 return result
             except BlockedRequestError as block:
+                self.log_exception(block)
                 logger.warning(
-                    "Bloqueio detectado em %s: %s (tentativa %s/%s)",
+                    'Bloqueio detectado em %s: %s (tentativa %s/%s)',
                     self.operator,
                     block,
                     attempt + 1,
                     MAX_RETRIES,
                 )
                 await asyncio.sleep(BLOCK_SLEEP_SECONDS)
-            except Exception as e:
+            except Exception as exc:
+                self.log_exception(exc)
                 if attempt + 1 == MAX_RETRIES:
+                    self.step('Ultima tentativa esgotada, retornando erro para o pipeline')
                     return DriverResult(
                         operator=self.operator,
-                        status="erro",
-                        plan="",
-                        message=str(e),
+                        status='erro',
+                        plan='',
+                        message=str(exc),
                         identifier=identifier,
                         id_type=id_type,
                     )
                 await asyncio.sleep(1.25)
-        # nunca cai aqui, mas deixa o retorno defensivo
+
         return DriverResult(
             operator=self.operator,
-            status="erro",
-            message="falha após retries",
+            status='erro',
+            message='falha apos retries',
             identifier=identifier,
             id_type=id_type,
         )
@@ -301,10 +318,12 @@ class BaseDriver:
 
         try:
             if url:
+                self.step(f"Navegando para {url}")
                 await page.goto(url)
                 run_debug.setdefault("navigation", {}).update({"target": url})
 
             for idx, step in enumerate(steps):
+                self.step(f"Executando passo {idx}: {step.get('action', 'desconhecido')}")
                 await self._run_step(page, step, identifier, run_debug, idx)
 
             block_indicators = [
@@ -316,30 +335,34 @@ class BaseDriver:
                 block_indicators = list(DEFAULT_BLOCK_KEYWORDS)
 
             if block_indicators:
+                self.step("Verificando indicadores de bloqueio")
                 html_snapshot = (await page.content()).lower()
                 if any(indicator in html_snapshot for indicator in block_indicators):
                     run_debug.setdefault("block_detected", True)
-                    raise BlockedRequestError(
-                        "indício de bloqueio detectado na página"
-                    )
+                    raise BlockedRequestError("indicativo de bloqueio detectado na pagina")
 
+            self.step("Verificando elemento de sucesso e extraindo resultado")
             status, plan, message, parse_debug = await self._parse_result(page, parsing)
             run_debug.update(parse_debug)
-        except Exception as e:
+        except Exception as error:
+            self.log_exception(error)
             screenshot_path = await self._capture_failure_artifact(page)
             if screenshot_path:
                 run_debug.setdefault("artifacts", {})["screenshot"] = screenshot_path
-            run_debug.setdefault("error", str(e))
+            run_debug.setdefault("error", str(error))
             return DriverResult(
                 operator=self.operator,
                 status="erro",
                 plan="",
-                message=str(e),
+                message=str(error),
                 debug=run_debug,
                 identifier=identifier,
                 id_type=id_type,
             )
 
+        self.step(
+            f"Resultado final: status={status} | plano={plan or '-'} | mensagem={message or '-'}"
+        )
         return DriverResult(
             operator=self.operator,
             status=status,
@@ -382,19 +405,23 @@ class BaseDriver:
             if action == "navigate":
                 target = step.get("target") or self.mapping.get("url")
                 if target:
+                    self.step(f"Navegando para {target}")
                     await page.goto(target)
                 wait_for = step.get("wait_for")
                 if isinstance(wait_for, list):
+                    self.step("Aguardando um dos seletores de destino ficar visivel")
                     matched = await self._wait_for_any(
                         page, wait_for, timeout, state="visible"
                     )
                     step_log["matched_wait_for"] = matched
                 elif wait_for:
+                    self.step(f"Aguardando selector {wait_for}")
                     await page.locator(wait_for).first.wait_for(
                         state="visible", timeout=timeout
                     )
                     step_log["matched_wait_for"] = wait_for
                 if wait_for_any:
+                    self.step("Aguardando qualquer selector adicional configurado")
                     matched = await self._wait_for_any(
                         page, wait_for_any, timeout, state="visible"
                     )
@@ -404,7 +431,9 @@ class BaseDriver:
                 if not selector:
                     raise ValueError("fill action requer 'selector'")
                 val = (step.get("value") or "").replace("{identifier}", identifier)
+                self.step(f"Preenchendo campo {selector} com valor {val}")
                 await page.fill(selector, val, timeout=timeout)
+                self.step("Campo preenchido com sucesso")
             elif action == "click":
                 selector = step.get("selector")
                 if not selector:
@@ -414,15 +443,19 @@ class BaseDriver:
                     click_kwargs["force"] = True
                 if step.get("no_wait_after") is not None:
                     click_kwargs["no_wait_after"] = bool(step.get("no_wait_after"))
+                self.step(f"Clicando no elemento {selector}")
                 await page.click(selector, **click_kwargs)
             elif action == "keypress":
                 key = step.get("key", "Enter")
+                self.step(f"Pressionando tecla {key}")
                 await self.keypress(page, step.get("selector"), key=key, timeout=timeout)
+                self.step(f"Tecla {key} enviada")
             elif action == "wait_for":
                 selector = step.get("selector")
                 if not selector:
                     raise ValueError("wait_for action requer 'selector'")
                 if isinstance(selector, list):
+                    self.step("Aguardando qualquer selector configurado ficar disponivel")
                     matched = await self._wait_for_any(
                         page,
                         selector,
@@ -431,46 +464,56 @@ class BaseDriver:
                     )
                     step_log["matched_wait_for"] = matched
                 else:
+                    self.step(f"Aguardando selector {selector}")
                     await page.locator(selector).first.wait_for(
                         state=step.get("state", "visible"), timeout=timeout
                     )
                     step_log["matched_wait_for"] = selector
             elif action == "wait_for_state":
-                await page.wait_for_load_state(step.get("state", "load"))
+                state = step.get("state", "load")
+                self.step(f"Aguardando estado de carregamento {state}")
+                await page.wait_for_load_state(state)
             elif action == "sleep":
                 post_delay = float(step.get("seconds", 0.0))
+                self.step(f"Aguardando {post_delay} segundos antes de continuar")
             else:
-                raise ValueError(f"ação desconhecida: {action}")
+                raise ValueError(f"acao desconhecida: {action}")
             step_log["status"] = "ok"
-        except Exception as e:
+        except Exception as error:
             if optional:
-                print(f"[{self.operator}] passo opcional '{action}' ignorado: {e}")
+                self.step(f"Passo opcional '{action}' ignorado por erro: {error}")
                 step_log["status"] = "skipped"
-                step_log["error"] = str(e)
+                step_log["error"] = str(error)
             else:
+                self.log_exception(error)
                 step_log["status"] = "error"
-                step_log["error"] = str(e)
+                step_log["error"] = str(error)
                 run_debug.setdefault("steps", []).append(step_log)
                 raise
         finally:
             if post_wait_selector:
                 try:
                     if isinstance(post_wait_selector, list):
+                        self.step("Aguardando pos-acao por qualquer selector configurado")
                         matched = await self._wait_for_any(
                             page, post_wait_selector, timeout, state="visible"
                         )
                         step_log["matched_post_wait"] = matched
                     else:
+                        self.step(f"Aguardando pos-acao pelo selector {post_wait_selector}")
                         await page.locator(post_wait_selector).first.wait_for(
                             state="visible", timeout=timeout
                         )
                         step_log["matched_post_wait"] = post_wait_selector
                 except Exception as wait_err:
                     if not optional:
+                        self.log_exception(wait_err)
                         step_log.setdefault("warnings", []).append(str(wait_err))
             elif post_delay:
+                self.step(f"Aguardando {post_delay} segundos (delay configurado)")
                 await page.wait_for_timeout(int(post_delay * 1000))
-            run_debug.setdefault("steps", []).append(step_log)
+
+        run_debug.setdefault("steps", []).append(step_log)
 
     async def keypress(
         self, page: Any, selector: Optional[str], key: str = "Enter", timeout: Optional[int] = None
@@ -504,12 +547,9 @@ class BaseDriver:
             )
         raise TimeoutError(f"Nenhum seletor válido informado: {selector_list}")
 
-    async def _parse_result(
-        self, page: Any, parsing: Dict[str, Any]
-    ) -> Tuple[str, str, str, Dict[str, Any]]:
-        status_selectors = (
-            parsing.get("status_selectors")
-            or parsing.get("status_selector_any")
+    async def _parse_result(self, page: Any, parsing: Dict[str, Any]):
+        status_selectors = parsing.get("status_selectors") or (
+            parsing.get("status_selector_any")
             or parsing.get("status_selector")
         )
         if isinstance(status_selectors, str):
@@ -529,7 +569,9 @@ class BaseDriver:
         raw_text = ""
         matched_selector: Optional[str] = None
 
+        self.step("Verificando seletores de status para identificar o resultado")
         for selector in status_selectors:
+            self.step(f"Verificando seletor de status {selector}")
             locator = page.locator(selector).first
             deadline = time.monotonic() + (status_timeout / 1000.0)
             candidate_text = ""
@@ -567,10 +609,12 @@ class BaseDriver:
                 pass
 
         if matched_selector:
+            self.step(f"Texto de status encontrado no seletor {matched_selector}")
             print(
                 f"[{self.operator}] texto capturado em '{matched_selector}': {raw_text[:200]}"
             )
         else:
+            self.step("Nenhum seletor de status retornou informacao")
             print(
                 f"[{self.operator}] nenhum texto encontrado para {status_selectors}"
             )
@@ -599,6 +643,7 @@ class BaseDriver:
         if plan_selectors:
             for selector in plan_selectors:
                 try:
+                    self.step(f"Capturando informacoes de plano no seletor {selector}")
                     plan_locator = page.locator(selector).first
                     await plan_locator.wait_for(
                         state="visible", timeout=status_timeout
@@ -608,14 +653,15 @@ class BaseDriver:
                         plan_text = plan_candidate
                         plan = plan_candidate[:300]
                         break
-                except Exception as e:
-                    last_error = e
+                except Exception as err:
+                    last_error = err
                     continue
             else:
                 if (
                     not parsing.get("plan_optional", False)
                     and last_error is not None
                 ):
+                    self.log_exception(last_error)
                     print(
                         f"[{self.operator}] falha ao capturar plano em '{plan_selectors}': {last_error}"
                     )
@@ -636,6 +682,9 @@ class BaseDriver:
             "decided_status": status,
         }
 
+        self.step(
+            f"Parse concluido: status={status} | plano={plan or '-'} | mensagem={message or '-'}"
+        )
         return status, plan, message, debug_info
 
     async def _capture_failure_artifact(self, page: Any) -> Optional[str]:
