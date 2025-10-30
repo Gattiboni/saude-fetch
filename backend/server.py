@@ -492,7 +492,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
         success = 0
         error = 0
         processed = 0
-        drivers = driver_manager.drivers
+        drivers = driver_manager._drivers        
         logger.info("identifiers_loaded", total=total)
 
         invalid_identifiers: List[str] = []
