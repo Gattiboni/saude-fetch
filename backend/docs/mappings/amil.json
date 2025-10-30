@@ -8,6 +8,11 @@
   },
   "steps": [
     {
+      "action": "navigate",
+      "target": "https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada",
+      "description": "Garantir que a navegação abra o fluxo correto"
+    },
+    {
       "action": "click_if_exists",
       "selector": "legend.d-none + div.collapse:not(.show) .accordion-button, legend.d-none",
       "description": "Expandir painel do Passo 1 se estiver colapsado"

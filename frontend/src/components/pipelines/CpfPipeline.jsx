@@ -21,10 +21,18 @@ export default function CpfPipeline(){
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [job, setJob] = useState(null)
-  const [status, setStatus] = useState(null) // latest job status
+  const [status, setStatus] = useState(null)
   const [logText, setLogText] = useState('')
   const [startTime, setStartTime] = useState(null)
   const [avgTime, setAvgTime] = useState(0)
+  const [manualToken, setManualToken] = useState('')
+  const [manualInfo, setManualInfo] = useState('')
+  const [manualCpfs, setManualCpfs] = useState('')
+  const [manualError, setManualError] = useState('')
+  const [manualBusy, setManualBusy] = useState(false)
+  const [manualResults, setManualResults] = useState(null)
+  const [manualFeedback, setManualFeedback] = useState('')
+  const [copyFeedback, setCopyFeedback] = useState('')
 
   const uploadingDisabled = useMemo(() => !file || creating, [file, creating])
 
@@ -59,7 +67,6 @@ export default function CpfPipeline(){
     finally{ setCreating(false); setFile(null) }
   }
 
-  // polling do job
   useEffect(()=>{
     if (!job?.id) return
     let stopped = false
@@ -70,16 +77,15 @@ export default function CpfPipeline(){
         if (stopped) return
         setStatus(s)
         if (s.status !== 'processing'){
-          // carregar log
           try{
             const res = await apiFetch(`/api/jobs/${job.id}/log`)
             const text = await res.text()
             setLogText(text)
-          }catch(e){ /* opcional */ }
+          }catch(e){ }
           setStartTime(null)
           return
         }
-      }catch(e){ /* ignore, re-tenta */ }
+      }catch(e){ }
       timer = setTimeout(tick, 1500)
     }
     tick()
@@ -117,6 +123,98 @@ export default function CpfPipeline(){
   const total = status?.total || 0
   const etaSeconds = total && avgTime > 0 ? Math.max(0, Math.round((total - current) * avgTime)) : 0
 
+  const manualIdentifiers = useMemo(
+    () =>
+      manualCpfs
+        .split(/[\s,;]+/)
+        .map(v => v.replace(/[^\d]/g, '').trim())
+        .filter(Boolean),
+    [manualCpfs]
+  )
+
+  const startManualAmil = async () => {
+    setManualError('')
+    setManualResults(null)
+    setManualInfo('')
+    setManualFeedback('')
+    try{
+      setManualBusy(true)
+      const res = await apiFetch('/api/manual/amil/start', { method: 'POST' })
+      setManualToken(res.token)
+      setManualInfo(res.note || 'Navegador aberto. Cole o link da Amil e carregue a página.')
+    }catch(err){
+      setManualError(err?.message || 'Falha ao iniciar navegador manual.')
+    }finally{
+      setManualBusy(false)
+    }
+  }
+
+  const runManualAmil = async () => {
+    setManualError('')
+    setManualResults(null)
+    const identifiers = manualIdentifiers
+    if (!manualToken){
+      setManualError('Inicie o navegador manual antes de executar a busca.')
+      return
+    }
+    if (!identifiers.length){
+      setManualError('Informe ao menos um CPF para consulta manual.')
+      return
+    }
+    try{
+      setManualBusy(true)
+      const res = await apiFetch('/api/manual/amil/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: manualToken, identifiers }),
+      })
+      setManualResults(res.results || [])
+    }catch(err){
+      setManualError(err?.message || 'Falha ao executar busca manual.')
+    }finally{
+      setManualBusy(false)
+    }
+  }
+
+  const handleManualUpload = async (event) => {
+    setManualError('')
+    setManualFeedback('')
+    const f = event.target.files?.[0]
+    if (!f) return
+    const fd = new FormData()
+    fd.append('file', f)
+    try{
+      setManualBusy(true)
+      const res = await apiFetch('/api/manual/amil/upload', {
+        method: 'POST',
+        body: fd,
+      })
+      const { valid = [], invalid = [], total = 0 } = res || {}
+      setManualCpfs(valid.join('\n'))
+      setManualResults(null)
+      setManualFeedback(`${valid.length} identificadores válidos carregados. ${invalid.length} inválidos de ${total} encontrados.`)
+      if (invalid.length) {
+        setManualError(`Alguns CPFs são inválidos ou não puderam ser lidos (${invalid.length}).`)
+      }
+    }catch(err){
+      setManualError(err?.message || 'Falha ao processar arquivo.')
+      setManualFeedback('')
+    }finally{
+      setManualBusy(false)
+      event.target.value = ''
+    }
+  }
+
+  const copyManualLink = async () => {
+    try{
+      await navigator.clipboard.writeText('https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada')
+      setCopyFeedback('Link copiado!')
+      setTimeout(() => setCopyFeedback(''), 1500)
+    }catch(err){
+      setManualError('Não foi possível copiar o link automaticamente.')
+    }
+  }
+
   return (
     <div className="card space-y-4" data-testid="cpf-pipeline">
       <form className="space-y-4" onSubmit={submit}>
@@ -129,6 +227,61 @@ export default function CpfPipeline(){
       </form>
 
       <ProgressBar current={current} total={total} etaSeconds={etaSeconds} />
+
+      <div className="space-y-3 border border-dashed border-blue-500/40 rounded p-4">
+        <div className="label font-semibold">Fluxo manual Amil</div>
+        <p className="label text-sm text-blue-200">
+          Utilize este modo quando o site bloquear automações. Um navegador real será aberto e você deverá carregar a página da Amil manualmente antes de executar a busca.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <button className="btn" type="button" onClick={copyManualLink} disabled={manualBusy}>
+            {copyFeedback || 'Copiar link'}
+          </button>
+          <label className="btn cursor-pointer">
+            Escolher arquivo
+            <input
+              type="file"
+              accept=".csv,.xls,.xlsx"
+              className="hidden"
+              onChange={handleManualUpload}
+              disabled={manualBusy}
+            />
+          </label>
+          <button className="btn" type="button" disabled={manualBusy} onClick={startManualAmil}>
+            Abrir Amil (manual)
+          </button>
+          <button
+            className="btn"
+            type="button"
+            disabled={manualBusy || !manualToken || manualIdentifiers.length === 0}
+            onClick={runManualAmil}
+          >
+            Executar busca Amil
+          </button>
+        </div>
+        {manualInfo && <div className="label text-green-200">{manualInfo}</div>}
+        {manualFeedback && <div className="label text-blue-200 text-sm">{manualFeedback}</div>}
+        <textarea
+          className="input w-full h-24 resize-none"
+          placeholder="Cole aqui os CPFs (um por linha ou separados por vírgula) para executar manualmente na Amil"
+          value={manualCpfs}
+          onChange={e => setManualCpfs(e.target.value)}
+          disabled={manualBusy}
+        />
+        {manualError && <div className="text-red-300">{manualError}</div>}
+        {manualResults && manualResults.length > 0 && (
+          <div className="label text-sm text-emerald-200 space-y-2">
+            <div>Resultados recebidos: {manualResults.length}</div>
+            <div className="bg-gray-900/60 p-2 rounded max-h-40 overflow-auto text-xs">
+              {manualResults.map((r, idx) => (
+                <div key={idx} className="py-1 border-b border-gray-800 last:border-0">
+                  <strong>{r.identifier}</strong> — {r.status} {r.plan ? `| ${r.plan}` : ''} {r.message ? `| ${r.message}` : ''}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {status && status.status !== 'processing' && (
         <div className="space-y-2" data-testid="cpf-summary">

@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 import logging
+import io
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -111,6 +112,11 @@ class JobList(BaseModel):
 
 class CnpjRequest(BaseModel):
     cnpjs: List[str]
+
+
+class AmilRunRequest(BaseModel):
+    token: str
+    identifiers: List[str]
 
 
 async def get_db():
@@ -381,6 +387,124 @@ async def create_job(background_tasks: BackgroundTasks, file: UploadFile = File(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+
+@app.post("/api/manual/amil/start")
+async def start_amil_manual(user: str = Depends(require_auth)):
+    """
+    Inicia navegador headful para fluxo manual da Amil.
+    Retorna token que o frontend usará para rodar a busca.
+    """
+    from playwright.async_api import async_playwright
+    import secrets
+
+    token = secrets.token_urlsafe(8)
+    pw = await async_playwright().start()
+    browser = await pw.chromium.launch(headless=False)
+    context = await browser.new_context(
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/121.0.0.0 Safari/537.36"
+        ),
+        viewport={"width": 1366, "height": 768},
+        locale="pt-BR",
+        timezone_id="America/Sao_Paulo",
+    )
+    page = await context.new_page()
+
+    _manual_pages[token] = {
+        "playwright": pw,
+        "browser": browser,
+        "context": context,
+        "page": page,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    return {
+        "token": token,
+        "note": "Navegador aberto. Cole o link da Amil e carregue a página.",
+    }
+
+
+@app.post("/api/manual/amil/run")
+async def run_amil_manual(data: AmilRunRequest, user: str = Depends(require_auth)):
+    """
+    Anexa o driver Amil à página aberta e executa a busca.
+    """
+    session = _manual_pages.get(data.token)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    page = session["page"]
+
+    from drivers.amil import AmilDriver
+
+    driver = AmilDriver()
+    results: List[DriverResult] = []
+    for ident in data.identifiers:
+        try:
+            result = await driver.consult(ident, id_type="cpf", page=page)
+        except Exception as exc:
+            result = DriverResult(
+                operator=driver.operator,
+                status="erro",
+                message=str(exc),
+                identifier=ident,
+                id_type="cpf",
+            )
+        results.append(result)
+
+    return {"results": [r.__dict__ for r in results]}
+
+
+@app.post("/api/manual/amil/upload")
+async def manual_amil_upload(
+    file: UploadFile = File(...), user: str = Depends(require_auth)
+):
+    """
+    Recebe CSV/XLSX com CPFs, retorna lista de CPFs válidos e inválidos.
+    """
+    try:
+        filename = file.filename or "upload"
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in [".csv", ".xls", ".xlsx"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported file type. Upload CSV or Excel.",
+            )
+
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Arquivo vazio.")
+
+        import pandas as pd
+
+        if ext == ".csv":
+            df = pd.read_csv(io.BytesIO(content), dtype=str)
+        else:
+            df = pd.read_excel(io.BytesIO(content), dtype=str)
+
+        raw_identifiers = to_rows(df, forced_type="cpf")
+        cleaned = [
+            clean_identifier(x) for x in raw_identifiers if str(x).strip()
+        ]
+
+        valid: List[str] = []
+        invalid: List[str] = []
+        for ident in cleaned:
+            if validate_cpf_cnpj(ident) and len(ident) == 11:
+                valid.append(ident)
+            else:
+                invalid.append(ident)
+
+        return {"total": len(cleaned), "valid": valid, "invalid": invalid}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # --- CNPJ PIPELINE ---
@@ -1238,3 +1362,5 @@ def write_last_run_log(
     os.makedirs(LOGS_DIR, exist_ok=True)
     with open(LAST_RUN_LOG, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
+CNPJ_PIPELINE_ENABLED = False
+_manual_pages: Dict[str, dict] = {}

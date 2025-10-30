@@ -2,8 +2,6 @@ import asyncio
 import os
 from typing import Any, Optional
 
-from playwright.async_api import TimeoutError as PlaywrightTimeoutError
-
 from .base import BaseDriver, DriverResult, BlockedRequestError
 
 
@@ -13,6 +11,17 @@ class AmilDriver(BaseDriver):
     def __init__(self) -> None:
         super().__init__("amil", supported_id_types=("cpf",))
 
+    async def consult(
+        self,
+        identifier: str,
+        id_type: str,
+        *,
+        page: Optional[Any] = None,
+    ) -> DriverResult:
+        if page is None:
+            return await super().consult(identifier, id_type, page=page)
+        return await self._perform(identifier, id_type, page=page)
+
     async def _perform(
         self,
         identifier: str,
@@ -20,22 +29,37 @@ class AmilDriver(BaseDriver):
         page: Optional[Any] = None,
     ) -> DriverResult:
         async def _run(page_obj: Any) -> DriverResult:
-            url = ((self.mapping or {}).get("navigate") or {}).get("url")
-            if url:
-                self.step("Navegando para página da Amil")
-                await page_obj.goto(
-                    url,
-                    wait_until="networkidle",
-                )
+            self.step("Carregando shell principal e injetando hash do formulário")
 
-            self.step("Aguardando React montar o conteúdo visual da página")
-            await page_obj.wait_for_load_state("networkidle")
-            await asyncio.sleep(5)
+            print("[DEBUG] Iniciando teste de renderização Amil")
+            await page_obj.goto(
+                "https://www.amil.com.br/institucional/",
+                wait_until="commit",
+            )
+            await asyncio.sleep(12)
+            await page_obj.evaluate(
+                "window.location.hash = '#/servicos/saude/rede-credenciada/amil/busca-avancada'"
+            )
+            await asyncio.sleep(12)
+
+            html = await page_obj.content()
+            print("[DEBUG] Tamanho do HTML renderizado:", len(html))
+            text_snapshot = await page_obj.inner_text("body")
+            print(
+                "[DEBUG] Texto visível (primeiros 300 chars):",
+                text_snapshot[:300],
+            )
+            os.makedirs("debug", exist_ok=True)
+            await page_obj.screenshot(path="debug/amil_debug.png", full_page=True)
+            print("[DEBUG] Screenshot salva em debug/amil_debug.png")
 
             self.step("Lendo texto renderizado no corpo da página")
-            page_text = await page_obj.evaluate("() => document.body.innerText")
+            page_text = await page_obj.evaluate("() => document.body.innerText || ''")
 
-            if "Beneficiário ou CPF" not in page_text:
+            if (
+                "Beneficiário ou CPF" not in page_text
+                and "Beneficiario ou CPF" not in page_text
+            ):
                 raise Exception(
                     "Texto 'Beneficiário ou CPF' não encontrado na tela (SPA possivelmente não renderizou)."
                 )
@@ -50,11 +74,14 @@ class AmilDriver(BaseDriver):
                     () => {
                         const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
                         while (walker.nextNode()) {
-                            if (walker.currentNode.textContent.includes('Beneficiário')) {
+                            const txt = walker.currentNode.textContent || '';
+                            if (txt.includes('Beneficiário') || txt.includes('Beneficiario')) {
                                 let el = walker.currentNode.parentElement;
                                 for (let i = 0; i < 5; i++) {
                                     el = el?.nextElementSibling || el?.parentElement?.querySelector('input');
-                                    if (el && el.tagName === 'INPUT') return el;
+                                    if (el && el.tagName === 'INPUT') {
+                                        return el;
+                                    }
                                 }
                             }
                         }

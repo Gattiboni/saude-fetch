@@ -274,11 +274,42 @@ class BaseDriver:
 
         storage_file = os.path.join(STORAGE_STATES_DIR, f"{self.operator}.json")
         context_kwargs = {"ignore_https_errors": True}
+        if self.operator == "amil":
+            context_kwargs.update(
+                {
+                    "user_agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/121.0.0.0 Safari/537.36"
+                    ),
+                    "viewport": {"width": 1366, "height": 768},
+                    "locale": "pt-BR",
+                    "timezone_id": "America/Sao_Paulo",
+                    "permissions": ["geolocation"],
+                }
+            )
         if os.path.exists(storage_file):
             context_kwargs["storage_state"] = storage_file
 
         context = await chromium.new_context(**context_kwargs)
         page = await context.new_page()
+        if self.operator == "amil":
+            await page.set_extra_http_headers(
+                {
+                    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Referer": "https://www.amil.com.br/",
+                    "DNT": "1",
+                    "Upgrade-Insecure-Requests": "1",
+                }
+            )
+            await page.add_init_script(
+                """
+Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+window.chrome = {runtime: {}};
+Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
+Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
+"""
+            )
         try:
             yield page
             try:

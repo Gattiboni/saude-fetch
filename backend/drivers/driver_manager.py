@@ -31,12 +31,20 @@ _operator_locks: Dict[str, asyncio.Semaphore] = defaultdict(default_lock_factory
 class DriverManager:
     def __init__(self) -> None:
         # Instantiate driver objects (assumes drivers implement required async methods)
-        self._drivers: Dict[str, BaseDriver] = {
-            "amil": AmilDriver(),
-            "bradesco": BradescoDriver(),
-            "unimed": UnimedDriver(),
-            "seguros_unimed": SegurosUnimedDriver(),
-        }
+        manual_only = os.getenv("AMIL_MANUAL_ONLY", "false").lower() == "true"
+        if manual_only:
+            self._drivers = {
+                "bradesco": BradescoDriver(),
+                "unimed": UnimedDriver(),
+                "seguros_unimed": SegurosUnimedDriver(),
+            }
+        else:
+            self._drivers = {
+                "amil": AmilDriver(),
+                "bradesco": BradescoDriver(),
+                "unimed": UnimedDriver(),
+                "seguros_unimed": SegurosUnimedDriver(),
+            }
 
         # semaphores
         self._global_sem = asyncio.Semaphore(MAX_CONCURRENCY)
