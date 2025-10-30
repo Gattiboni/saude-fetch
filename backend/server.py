@@ -687,8 +687,8 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             df = pd.read_excel(path, dtype=str)
 
         raw_identifiers = to_rows(df, forced_type)
-        unique_identifiers = sorted({clean_identifier(x) for x in raw_identifiers if str(x).strip()})
-        total = len(unique_identifiers)
+        identifiers = [clean_identifier(x) for x in raw_identifiers if str(x).strip()]
+        total = len(identifiers)
 
         await db.jobs.update_one(
             {"_id": job_id},
@@ -704,7 +704,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
 
         invalid_identifiers: List[str] = []
         grouped: Dict[str, List[str]] = defaultdict(list)
-        for ident in unique_identifiers:
+        for ident in identifiers:
             if not validate_cpf_cnpj(ident):
                 invalid_identifiers.append(ident)
                 continue
