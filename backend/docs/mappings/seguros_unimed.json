@@ -11,65 +11,23 @@
   "steps": [
     { "wait": { "ms": 3000 } },
     {
-      "action": "navigate",
-      "target": "https://www.segurosunimed.com.br/portal/guia-medico",
-      "wait_for_any": [
-        "input[placeholder*='cpf' i]",
-        "input[name*='cpf' i]"
-      ],
-      "timeout_ms": 20000
-    },
-    {
-      "action": "fill",
-      "selector": "input[placeholder*='cpf' i]",
-      "value": "{identifier}",
-      "timeout_ms": 20000
-    },
-    {
-      "action": "wait_for",
-      "selector": [
-        "text=/plano/i",
-        "text=/não localizamos/i",
-        ".s-text.s-text-secondary",
-        ".s-input-feedback-invalid"
-      ],
-      "timeout_ms": 20000
+      "conditional": [
+        {
+          "if": { "exists": { "selector": "p.s-input-feedback.s-input-feedback-invalid", "text_contains": "Não localizamos plano para o CPF informado" } },
+          "then": [
+            { "set": { "result": "negative", "reason": "Não localizamos plano" } }
+          ]
+        },
+        {
+          "if": { "exists": { "selector": ".col-lg-4.d-flex.flex-row.align-items-center.mb-4 > p.s-text.s-text-secondary" } },
+          "then": [
+            { "set": { "result": "positive" } },
+            { "extract": { "plan_name": { "selector": ".col-lg-4.d-flex.flex-row.align-items-center.mb-4 > p.s-text.s-text-secondary", "attribute": "innerText" } } }
+          ]
+        }
+      ]
     }
   ],
-  "result_parsing": {
-    "status_selectors": [
-      "text=/plano/i",
-      "text=/não localizamos/i",
-      ".s-text.s-text-secondary",
-      ".s-input-feedback-invalid"
-    ],
-    "status_timeout_ms": 20000,
-    "status_poll_interval_ms": 300,
-    "positive_keywords": [
-      "PLANO",
-      "UNIMED",
-      "PME",
-      "COMPACTO",
-      "EMPRESA",
-      "COOPERADO",
-      "ATIVO"
-    ],
-    "negative_keywords": [
-      "NÃO LOCALIZAMOS",
-      "CPF INFORMADO",
-      "INVÁLIDO",
-      "SEM PLANO"
-    ],
-    "error_keywords": [
-      "ERRO",
-      "INVÁLIDO",
-      "NÃO LOCALIZAMOS"
-    ],
-    "plan_selectors": [
-      ".s-text.s-text-secondary",
-      ".s-input-feedback-invalid"
-    ],
-    "plan_optional": true
-  },
-  "notes": "A validação ocorre automaticamente após o preenchimento. Seletores tolerantes cobrem variações de mensagens de sucesso ou erro."
+  "loop": { "reenter_on": "next_input", "keep_page_open": true },
+  "errors": { "on_timeout": "retry_once_then_fail" }
 }

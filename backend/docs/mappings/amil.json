@@ -11,88 +11,37 @@
   },
   "steps": [
     {
-      "action": "navigate",
-      "target": "https://www.amil.com.br/para-voce/saude/rede-credenciada",
-      "wait_for_any": [
-        "input[placeholder*='cpf' i]",
-        "input[name*='cpf' i]",
-        "input[id*='cpf' i]",
-        "#cpf_input"
-      ],
-      "timeout_ms": 20000
+      "wait_for": {
+        "any": [
+          { "selector": ".modal-content .modal-title", "timeout_ms": 7000 },
+          { "selector": ".rw-input.rw-dropdown-list-input", "timeout_ms": 7000 }
+        ]
+      }
     },
     {
-      "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[data-testid='accept-all'], button[aria-label*='aceitar' i], button:has-text('Aceitar')",
-      "optional": true,
-      "timeout_ms": 500,
-      "force": true
-    },
-    {
-      "action": "fill",
-      "selector": "input[placeholder*='cpf' i]",
-      "value": "{identifier}",
-      "timeout_ms": 20000
-    },
-    {
-      "action": "keypress",
-      "selector": "input[placeholder*='cpf' i]",
-      "key": "Enter",
-      "timeout_ms": 12000
-    },
-    {
-      "action": "wait_for",
-      "selector": [
-        "text=/plano/i",
-        "text=/rede/i",
-        "text=/beneficiário/i",
-        "text=/campo obrigatório/i",
-        "#plan-input_input .rw-input",
-        ".input-redux__error span",
-        ".input-redux__error"
-      ],
-      "timeout_ms": 20000
+      "conditional": [
+        {
+          "if": { "exists": { "selector": ".modal-content #custom-modal-description", "text_contains": "Nenhum resultado encontrado." } },
+          "then": [
+            { "set": { "result": "negative", "reason": "Nenhum resultado encontrado" } },
+            { "click": { "selector": ".modal-footer .btn.btn-primary", "timeout_ms": 4000 } }
+          ]
+        },
+        {
+          "if": { "exists": { "selector": ".rw-input.rw-dropdown-list-input", "text_not_in": ["", "Plano ou rede"] } },
+          "then": [
+            { "set": { "result": "positive" } },
+            { "extract": { "plan_name": { "selector": ".rw-input.rw-dropdown-list-input", "attribute": "innerText" } } }
+          ]
+        },
+        {
+          "else": [
+            { "set": { "result": "negative", "reason": "Placeholder permaneceu (Plano ou rede)" } }
+          ]
+        }
+      ]
     }
   ],
-  "result_parsing": {
-    "status_selectors": [
-      "text=/plano/i",
-      "text=/rede/i",
-      "text=/beneficiário/i",
-      "text=/campo obrigatório/i",
-      "#plan-input_input .rw-input",
-      ".input-redux__error span",
-      ".input-redux__error"
-    ],
-    "status_timeout_ms": 20000,
-    "status_poll_interval_ms": 400,
-    "positive_keywords": [
-      "rede",
-      "plano",
-      "beneficiário",
-      "ouro",
-      "prata",
-      "bronze",
-      "ativo"
-    ],
-    "negative_keywords": [
-      "campo obrigatório",
-      "cpf inválido",
-      "não encontramos",
-      "preencha",
-      "inválido"
-    ],
-    "error_keywords": [
-      "erro",
-      "indisponível",
-      "tente novamente"
-    ],
-    "plan_selectors": [
-      "#plan-input_input .rw-input",
-      ".rw-dropdown-list-input",
-      "text=/plano/i"
-    ],
-    "plan_optional": true
-  },
-  "notes": "Fluxo ajustado para tolerar variações de placeholders e mensagens inline. Após enviar o CPF com Enter, o componente #plan-input_input exibe o nome do plano; mensagens inline com '.input-redux__error' sinalizam entradas inválidas."
+  "loop": { "reenter_on": "next_input", "keep_page_open": true },
+  "errors": { "on_timeout": "retry_once_then_fail" }
 }
