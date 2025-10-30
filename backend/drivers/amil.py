@@ -31,16 +31,38 @@ class AmilDriver(BaseDriver):
         async def _run(page_obj: Any) -> DriverResult:
             self.step("Carregando shell principal e injetando hash do formulário")
 
-            print("[DEBUG] Iniciando teste de renderização Amil")
-            await page_obj.goto(
-                "https://www.amil.com.br/institucional/",
-                wait_until="commit",
-            )
-            await asyncio.sleep(12)
-            await page_obj.evaluate(
-                "window.location.hash = '#/servicos/saude/rede-credenciada/amil/busca-avancada'"
-            )
-            await asyncio.sleep(12)
+            current_url = getattr(page_obj, "url", "") or ""
+            current_url_lower = current_url.lower()
+
+            if "amil.com.br" in current_url_lower:
+                print("[DEBUG] Iniciando teste de renderização Amil (modo manual detectado)")
+                if "rede-credenciada/amil" not in current_url_lower:
+                    print("[INFO] Tentando ajustar hash local sem recarregar página...")
+                    try:
+                        await page_obj.evaluate(
+                            "if (!window.location.hash.includes('rede-credenciada/amil')) "
+                            "window.location.hash = '#/servicos/saude/rede-credenciada/amil/busca-avancada';"
+                        )
+                    except Exception as exc:
+                        print(f"[WARN] Falha ao ajustar hash automaticamente: {exc}")
+                await asyncio.sleep(5)
+                print("[DEBUG] Página pronta, iniciando varredura do DOM.")
+            else:
+                if current_url:
+                    print("[WARN] Página não está na Amil — abortando execução.")
+                    raise Exception(
+                        "Página incorreta: abra manualmente a busca Amil antes de executar."
+                    )
+                print("[DEBUG] Iniciando teste de renderização Amil (modo automático)")
+                await page_obj.goto(
+                    "https://www.amil.com.br/institucional/",
+                    wait_until="commit",
+                )
+                await asyncio.sleep(12)
+                await page_obj.evaluate(
+                    "window.location.hash = '#/servicos/saude/rede-credenciada/amil/busca-avancada'"
+                )
+                await asyncio.sleep(12)
 
             html = await page_obj.content()
             print("[DEBUG] Tamanho do HTML renderizado:", len(html))
