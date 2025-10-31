@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { apiFetch, API_BASE } from '../../App'
 
-function ProgressBar({ current, total, etaSeconds }){
-  const pct = total ? Math.round((current/total)*100) : 0
+function ProgressBar({ current, total, etaSeconds }) {
+  const pct = total ? Math.round((current / total) * 100) : 0
   const etaLabel = total && current < total && etaSeconds > 0 ? ` • ETA ~${etaSeconds}s` : ''
   return (
     <div className="space-y-1">
@@ -16,7 +16,7 @@ function ProgressBar({ current, total, etaSeconds }){
   )
 }
 
-export default function CpfPipeline(){
+export default function CpfPipeline() {
   const [file, setFile] = useState(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
@@ -39,8 +39,8 @@ export default function CpfPipeline(){
   const validateFile = (f) => {
     setError('')
     if (!f) return false
-    const ok = ['text/csv','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
-    if (!ok.includes(f.type) && !/\.(csv|xlsx)$/i.test(f.name)){
+    const ok = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+    if (!ok.includes(f.type) && !/\.(csv|xlsx)$/i.test(f.name)) {
       setError('Arquivo inválido. Envie CSV ou Excel (.csv ou .xlsx).')
       return false
     }
@@ -50,7 +50,7 @@ export default function CpfPipeline(){
   const submit = async (e) => {
     e.preventDefault()
     if (!validateFile(file)) return
-    try{
+    try {
       setCreating(true)
       setError('')
       setJob(null)
@@ -58,65 +58,65 @@ export default function CpfPipeline(){
       setLogText('')
       const fd = new FormData()
       fd.append('file', file)
-      const j = await apiFetch('/api/jobs', { method:'POST', body: fd })
+      const j = await apiFetch('/api/jobs', { method: 'POST', body: fd })
       setJob(j)
       setStatus(j)
       setStartTime(Date.now())
       setAvgTime(0)
-    }catch(err){ setError('Erro ao enviar arquivo: ' + (err?.message||err)) }
-    finally{ setCreating(false); setFile(null) }
+    } catch (err) { setError('Erro ao enviar arquivo: ' + (err?.message || err)) }
+    finally { setCreating(false); setFile(null) }
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!job?.id) return
     let stopped = false
     let timer
     const tick = async () => {
-      try{
+      try {
         const s = await apiFetch(`/api/jobs/${job.id}`)
         if (stopped) return
         setStatus(s)
-        if (s.status !== 'processing'){
-          try{
+        if (s.status !== 'processing') {
+          try {
             const res = await apiFetch(`/api/jobs/${job.id}/log`)
             const text = await res.text()
             setLogText(text)
-          }catch(e){ }
+          } catch (e) { }
           setStartTime(null)
           return
         }
-      }catch(e){ }
+      } catch (e) { }
       timer = setTimeout(tick, 1500)
     }
     tick()
-    return ()=>{ stopped = true; timer && clearTimeout(timer) }
+    return () => { stopped = true; timer && clearTimeout(timer) }
   }, [job?.id])
 
-  useEffect(()=>{
-    if (!job?.id){
+  useEffect(() => {
+    if (!job?.id) {
       setStartTime(null)
       setAvgTime(0)
     }
   }, [job?.id])
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!startTime || !status?.processed || !status?.total) return
     if (status.processed <= 0) return
     if (status.status !== 'processing') return
     const elapsed = (Date.now() - startTime) / 1000
-    if (elapsed > 0){
+    if (elapsed > 0) {
       setAvgTime(elapsed / status.processed)
     }
   }, [status?.processed, status?.status, startTime])
 
   const downloadXlsx = async () => {
     if (!status?.id) return
-    try{
+    try {
       const res = await apiFetch(`/api/jobs/${status.id}/results?format=xlsx`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a'); a.href = url; a.download = `${status.id}.xlsx`; a.click(); URL.revokeObjectURL(url)
-    }catch(err){ setError('Falha ao baixar XLSX: ' + (err?.message||err)) }
+    } catch (err) { setError('Falha ao baixar XLSX: ' + (err?.message || err)) }
   }
 
   const current = status?.processed || 0
@@ -137,14 +137,14 @@ export default function CpfPipeline(){
     setManualResults(null)
     setManualInfo('')
     setManualFeedback('')
-    try{
+    try {
       setManualBusy(true)
       const res = await apiFetch('/api/manual/amil/start', { method: 'POST' })
       setManualToken(res.token)
       setManualInfo(res.note || 'Navegador aberto. Cole o link da Amil e carregue a página.')
-    }catch(err){
+    } catch (err) {
       setManualError(err?.message || 'Falha ao iniciar navegador manual.')
-    }finally{
+    } finally {
       setManualBusy(false)
     }
   }
@@ -153,15 +153,15 @@ export default function CpfPipeline(){
     setManualError('')
     setManualResults(null)
     const identifiers = manualIdentifiers
-    if (!manualToken){
+    if (!manualToken) {
       setManualError('Inicie o navegador manual antes de executar a busca.')
       return
     }
-    if (!identifiers.length){
+    if (!identifiers.length) {
       setManualError('Informe ao menos um CPF para consulta manual.')
       return
     }
-    try{
+    try {
       setManualBusy(true)
       const res = await apiFetch('/api/manual/amil/run', {
         method: 'POST',
@@ -169,9 +169,9 @@ export default function CpfPipeline(){
         body: JSON.stringify({ token: manualToken, identifiers }),
       })
       setManualResults(res.results || [])
-    }catch(err){
+    } catch (err) {
       setManualError(err?.message || 'Falha ao executar busca manual.')
-    }finally{
+    } finally {
       setManualBusy(false)
     }
   }
@@ -183,7 +183,7 @@ export default function CpfPipeline(){
     if (!f) return
     const fd = new FormData()
     fd.append('file', f)
-    try{
+    try {
       setManualBusy(true)
       const res = await apiFetch('/api/manual/amil/upload', {
         method: 'POST',
@@ -196,21 +196,21 @@ export default function CpfPipeline(){
       if (invalid.length) {
         setManualError(`Alguns CPFs são inválidos ou não puderam ser lidos (${invalid.length}).`)
       }
-    }catch(err){
+    } catch (err) {
       setManualError(err?.message || 'Falha ao processar arquivo.')
       setManualFeedback('')
-    }finally{
+    } finally {
       setManualBusy(false)
       event.target.value = ''
     }
   }
 
   const copyManualLink = async () => {
-    try{
+    try {
       await navigator.clipboard.writeText('https://www.amil.com.br/institucional/#/servicos/saude/rede-credenciada/amil/busca-avancada')
       setCopyFeedback('Link copiado!')
       setTimeout(() => setCopyFeedback(''), 1500)
-    }catch(err){
+    } catch (err) {
       setManualError('Não foi possível copiar o link automaticamente.')
     }
   }
@@ -220,10 +220,10 @@ export default function CpfPipeline(){
       <form className="space-y-4" onSubmit={submit}>
         <div>
           <label className="label">Arquivo (.csv ou .xlsx)</label>
-          <input data-testid="cpf-input-file" type="file" accept=".csv,.xlsx" className="input w-full" onChange={e=> setFile(e.target.files?.[0]||null)} />
+          <input data-testid="cpf-input-file" type="file" accept=".csv,.xlsx" className="input w-full" onChange={e => setFile(e.target.files?.[0] || null)} />
         </div>
         {error && <div className="text-red-300" data-testid="cpf-error">{error}</div>}
-        <button className="btn" data-testid="cpf-submit" disabled={uploadingDisabled}>{creating? 'Enviando…' : 'Enviar e processar'}</button>
+        <button className="btn" data-testid="cpf-submit" disabled={uploadingDisabled}>{creating ? 'Enviando…' : 'Enviar e processar'}</button>
       </form>
 
       <ProgressBar current={current} total={total} etaSeconds={etaSeconds} />
@@ -293,7 +293,7 @@ export default function CpfPipeline(){
       {!!logText && (
         <div className="space-y-2" data-testid="cpf-log">
           <div className="label">Log da última execução</div>
-          <pre className="label whitespace-pre-wrap bg-gray-900 p-2 rounded" style={{maxHeight: 220, overflow: 'auto'}}>{logText}</pre>
+          <pre className="label whitespace-pre-wrap bg-gray-900 p-2 rounded" style={{ maxHeight: 220, overflow: 'auto' }}>{logText}</pre>
         </div>
       )}
     </div>

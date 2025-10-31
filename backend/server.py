@@ -1179,7 +1179,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
 
 
 def build_xlsx_from_results(df: pd.DataFrame, out_path: str):
-    header = ["CPF", "amil", "bradesco", "unimed", "unimed seguros"]
+    header = ["CPF", "bradesco", "unimed", "seguros unimed"]
     wb = Workbook()
     ws = wb.active
     ws.title = "Consulta CPF"
@@ -1200,7 +1200,12 @@ def build_xlsx_from_results(df: pd.DataFrame, out_path: str):
             by_cpf[cpf_fmt] = {}
         by_cpf[cpf_fmt][op] = val
     for cpf_fmt, ops in by_cpf.items():
-        row = [cpf_fmt, ops.get("amil", ""), ops.get("bradesco", ""), ops.get("unimed", ""), ops.get("seguros_unimed", "")]
+        row = [
+            cpf_fmt,
+            ops.get("bradesco", ""),
+            ops.get("unimed", ""),
+            ops.get("seguros_unimed", ""),
+        ]
         ws.append(row)
     for cell in ws["A"]:
         cell.number_format = "@"

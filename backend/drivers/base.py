@@ -70,18 +70,26 @@ async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
     # Abre Chrome real com contexto persistente e janela separada
     browser_context = await pw.chromium.launch_persistent_context(
         user_dir,
-        headless=headless,
+        headless=False,
         slow_mo=slow_mo,
         executable_path=chrome_path,
+        viewport=None,
         args=[
             "--no-sandbox",
             "--disable-blink-features=AutomationControlled",
             "--no-first-run",
             "--no-default-browser-check",
             "--new-window",
+            "--start-maximized",
         ],
     )
     page = await browser_context.new_page()
+    try:
+        await page.evaluate(
+            "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
+        )
+    except Exception:
+        pass
     return browser_context.browser, browser_context, page
 
 
@@ -276,8 +284,17 @@ class BaseDriver:
             await _run(page)
         else:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page_obj = await browser.new_page()
+                browser = await p.chromium.launch(
+                    headless=False,
+                    args=["--start-maximized"],
+                )
+                page_obj = await browser.new_page(viewport=None)
+                try:
+                    await page_obj.evaluate(
+                        "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
+                    )
+                except Exception:
+                    pass
                 try:
                     await _run(page_obj)
                 finally:
@@ -300,12 +317,18 @@ class BaseDriver:
             await context.close()
             context = await browser.new_context(
                 ignore_https_errors=True,
-                viewport={"width": 1366, "height": 768},
+                viewport=None,
                 locale="pt-BR",
                 timezone_id="America/Sao_Paulo",
                 storage_state=storage_file,
             )
             page = await context.new_page()
+            try:
+                await page.evaluate(
+                    "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
+                )
+            except Exception:
+                pass
             await page.add_init_script(
                 """
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
