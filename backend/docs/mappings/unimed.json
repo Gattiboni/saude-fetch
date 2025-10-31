@@ -1,11 +1,5 @@
 {
   "operator": "unimed",
-  "start_url": "https://www.unimed.coop.br/site/guia-medico#/",
-  "wait_for_any": "#client-input",
-  "block_indicators": [
-    "text=/erro/i",
-    "text=/muitos acessos/i"
-  ],
   "steps": [
     {
       "action": "navigate",
@@ -14,7 +8,7 @@
     },
     {
       "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar')",
+      "selector": "#onetrust-accept-btn-handler, button:has-text('Aceitar')",
       "timeout_ms": 3000,
       "optional": true
     },
@@ -23,18 +17,37 @@
       "timeout_ms": 300
     },
     {
-      "action": "fill",
+      "action": "type",
       "selector": "#client-input",
-      "timeout_ms": 20000
+      "timeout_ms": 10000
     },
     {
       "action": "wait_for",
       "selector": [
-        "text=/UNIMED/i",
         "#NameIdenticadedUser",
+        "text=/UNIMED/i",
         ".ClientInputWithLabel--text"
       ],
-      "timeout_ms": 20000
+      "timeout_ms": 15000
+    },
+    {
+      "action": "evaluate",
+      "script": "(() => { const el = document.querySelector('#NameIdenticadedUser, .ClientInputWithLabel--text'); if (!el) return 'indefinido'; const txt = (el.innerText || '').toLowerCase(); if (txt.includes('n\u00e3o encontrado')) return 'negativo'; if (txt.includes('unimed')) return 'positivo'; return 'indefinido'; })()",
+      "timeout_ms": 10000
     }
-  ]
+  ],
+  "result_parsing": {
+    "status_selectors": [
+      "#NameIdenticadedUser",
+      ".ClientInputWithLabel--text"
+    ],
+    "positive_keywords": [
+      "UNIMED"
+    ],
+    "negative_keywords": [
+      "N\u00c3O ENCONTRADO"
+    ],
+    "status_timeout_ms": 15000,
+    "plan_optional": true
+  }
 }

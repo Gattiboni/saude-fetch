@@ -164,7 +164,7 @@ class BaseDriver:
         )
         global _PRINTED_MAPPINGS_DIR
         if not _PRINTED_MAPPINGS_DIR:
-            print(f"[drivers] using MAPPINGS_DIR: {MAPPINGS_DIR}")
+            logger.info("[drivers] using MAPPINGS_DIR: %s", MAPPINGS_DIR)
             _PRINTED_MAPPINGS_DIR = True
 
         self.mapping_path = self._resolve_mapping_path()
@@ -175,16 +175,20 @@ class BaseDriver:
                 with open(self.mapping_path, "r", encoding="utf-8-sig") as f:
                     self.mapping = json.load(f)
             except Exception as e:
-                print(f"[{self.operator}] erro ao carregar mapping: {e}")
+                logger.exception("[%s] erro ao carregar mapping: %s", self.operator, e)
         else:
-            print(f"[{self.operator}] mapping nao encontrado em {self.mapping_path}")
+            logger.warning(
+                "[%s] mapping nao encontrado em %s", self.operator, self.mapping_path
+            )
 
     def _load_mapping(self):
         """Permite reload sem recriar a instancia."""
         resolved_path = self._resolve_mapping_path()
         if resolved_path != self.mapping_path:
-            print(
-                f"[{self.operator}] atualizando caminho do mapping para {resolved_path}"
+            logger.info(
+                "[%s] atualizando caminho do mapping para %s",
+                self.operator,
+                resolved_path,
             )
             self.mapping_path = resolved_path
         try:
@@ -193,11 +197,10 @@ class BaseDriver:
                 self.mapping = json.load(f)
         except Exception as e:
             self.mapping = None
-            print(f"[{self.operator}] erro no reload do mapping: {e}")
+            logger.exception("[%s] erro no reload do mapping: %s", self.operator, e)
 
     def step(self, message: str) -> None:
-        logger.debug(f"[{self.operator}] {message}")
-        print(f"[DEBUG] [{self.operator}] {message}")
+        logger.debug("[%s] %s", self.operator, message)
 
     def _log_action(
         self,
@@ -213,8 +216,31 @@ class BaseDriver:
             message = f"{message}: {detail}"
         logger.info(message)
     def log_exception(self, error: Exception) -> None:
-        logger.error(f"[{self.operator}] ERRO durante execucao: {error}")
-        print(f"[DEBUG] [{self.operator}] ERRO durante execucao: {error}")
+        logger.error("[%s] ERRO durante execucao: %s", self.operator, error)
+
+    async def _ensure_rendered(self, page: Any) -> None:
+        try:
+            await page.wait_for_timeout(500)
+        except Exception:
+            pass
+        try:
+            await page.wait_for_load_state("networkidle")
+        except Exception:
+            pass
+
+    async def _human_type(
+        self,
+        page: Any,
+        selector: str,
+        value: str,
+        *,
+        timeout: int,
+        delay: int,
+    ) -> None:
+        await self._ensure_rendered(page)
+        await page.click(selector, timeout=timeout)
+        await page.fill(selector, "", timeout=timeout)
+        await page.type(selector, value, delay=delay)
 
     def _resolve_mapping_path(self) -> str:
         """Resolve o caminho do mapping aceitando variacoes de nomenclatura."""
@@ -232,8 +258,10 @@ class BaseDriver:
         for candidate in candidates:
             if os.path.exists(candidate):
                 if candidate != candidates[0]:
-                    print(
-                        f"[{self.operator}] mapping encontrado usando variacao de nome: {candidate}"
+                    logger.info(
+                        "[%s] mapping encontrado usando variacao de nome: %s",
+                        self.operator,
+                        candidate,
                     )
                 return candidate
 
@@ -418,19 +446,13 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 logger.debug("[%s] falha ao salvar storage state: %s", self.operator, exc)
         finally:
             try:
-                if hasattr(context, "is_closed"):
-                    if not context.is_closed():
-                        await context.close()
-                else:
+                if not context.is_closed():
                     await context.close()
             except Exception as exc:
                 logger.debug("[%s] falha ao fechar contexto: %s", self.operator, exc)
 
             try:
-                if hasattr(browser, "is_connected"):
-                    if browser.is_connected():
-                        await browser.close()
-                else:
+                if browser.is_connected():
                     await browser.close()
             except Exception as exc:
                 logger.debug("[%s] falha ao fechar navegador: %s", self.operator, exc)
@@ -463,7 +485,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             "steps": [],
         }
         self._last_evaluation_result = None
-        logger.info(f"===== [{self.operator}] INÍCIO CPF {identifier} =====")
+        logger.info("===== [%s] INÍCIO CPF %s =====", self.operator, identifier)
 
         try:
             if url:
@@ -500,7 +522,9 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             logger.info(
                 f"[{self.operator}] status=erro | plano=- | mensagem={error}"
             )
-            logger.info(f"===== [{self.operator}] FIM CPF {identifier} (erro) =====")
+            logger.info(
+                "===== [%s] FIM CPF %s (erro) =====", self.operator, identifier
+            )
             return DriverResult(
                 operator=self.operator,
                 status="erro",
@@ -527,14 +551,24 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
         if evaluation_result is not None:
             result.debug.setdefault("evaluation_result", evaluation_result)
 
-        if run_debug.get("block_detected"):
-            if str(evaluation_result or "").strip().lower() in {"", "indefinido", "none"}:
+        if result.debug.get("block_detected"):
+            evaluation_check = str(result.evaluation_result or "").strip().lower()
+            if evaluation_check in {"", "indefinido", "none"}:
                 raise Exception("indicativo de bloqueio detectado na pagina")
 
         logger.info(
-            f"[{self.operator}] status={status or '-'} | plano={plan or '-'} | mensagem={message or '-'}"
+            "[%s] status=%s | plano=%s | mensagem=%s",
+            self.operator,
+            status or "-",
+            plan or "-",
+            message or "-",
         )
-        logger.info(f"===== [{self.operator}] FIM CPF {identifier} ({status or '-'}) =====")
+        logger.info(
+            "===== [%s] FIM CPF %s (%s) =====",
+            self.operator,
+            identifier,
+            status or "-",
+        )
         return result
 
     async def _run_step(
@@ -578,11 +612,13 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                     await page.goto(target)
                 wait_for = step.get("wait_for")
                 if isinstance(wait_for, list):
+                    await self._ensure_rendered(page)
                     matched = await self._wait_for_any(
                         page, wait_for, timeout, state="visible"
                     )
                     step_log["matched_wait_for"] = matched
                 elif wait_for:
+                    await self._ensure_rendered(page)
                     await page.locator(wait_for).first.wait_for(
                         state="visible", timeout=timeout
                     )
@@ -592,12 +628,23 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                         page, wait_for_any, timeout, state="visible"
                     )
                     step_log["matched_wait_for_any"] = matched
-            elif action == "fill":
+            elif action in {"fill", "type"}:
                 selector = step.get("selector")
                 if not selector:
-                    raise ValueError("fill action requer 'selector'")
-                val = (step.get("value") or "").replace("{identifier}", identifier)
-                await page.fill(selector, val, timeout=timeout)
+                    raise ValueError(f"{action} action requer 'selector'")
+                raw_value = step.get("value")
+                if raw_value is None:
+                    val = identifier
+                else:
+                    val = str(raw_value).replace("{identifier}", identifier)
+                delay_ms = int(step.get("delay_ms", 75))
+                await self._human_type(
+                    page,
+                    selector,
+                    val,
+                    timeout=timeout,
+                    delay=delay_ms,
+                )
             elif action == "click":
                 selector = step.get("selector")
                 if not selector:
@@ -623,10 +670,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 script = step.get("script") or step.get("expression")
                 if not script:
                     raise ValueError("evaluate action requer 'script' ou 'expression'")
-                try:
-                    await page.wait_for_timeout(500)
-                except Exception:
-                    pass
+                await self._ensure_rendered(page)
                 modal_selector = "div.bs-modal__container strong.bs-alert__title"
                 modal_timeout = timeout or 5000
                 try:
@@ -645,6 +689,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 selector = step.get("selector")
                 if not selector:
                     raise ValueError("wait_for action requer 'selector'")
+                await self._ensure_rendered(page)
                 if isinstance(selector, list):
                     matched = await self._wait_for_any(
                         page,
@@ -660,6 +705,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                     step_log["matched_wait_for"] = selector
             elif action == "wait_for_state":
                 state = step.get("state", "load")
+                await self._ensure_rendered(page)
                 await page.wait_for_load_state(state)
             elif action == "sleep":
                 post_delay = float(step.get("seconds", 0.0))
@@ -680,6 +726,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
         finally:
             if post_wait_selector:
                 try:
+                    await self._ensure_rendered(page)
                     if isinstance(post_wait_selector, list):
                         matched = await self._wait_for_any(
                             page, post_wait_selector, timeout, state="visible"
@@ -716,6 +763,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
     ) -> str:
         selector_list = [candidate for candidate in selectors if candidate]
         last_error: Optional[Exception] = None
+        await self._ensure_rendered(page)
         for candidate in selector_list:
             try:
                 await page.locator(candidate).first.wait_for(
@@ -753,6 +801,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
         raw_text = ""
         matched_selector: Optional[str] = None
 
+        await self._ensure_rendered(page)
         self.step("Verificando seletores de status para identificar o resultado")
         for selector in status_selectors:
             self.step(f"Verificando seletor de status {selector}")
@@ -794,13 +843,18 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
 
         if matched_selector:
             self.step(f"Texto de status encontrado no seletor {matched_selector}")
-            print(
-                f"[{self.operator}] texto capturado em '{matched_selector}': {raw_text[:200]}"
+            logger.info(
+                "[%s] texto capturado em '%s': %s",
+                self.operator,
+                matched_selector,
+                raw_text[:200],
             )
         else:
             self.step("Nenhum seletor de status retornou informacao")
-            print(
-                f"[{self.operator}] nenhum texto encontrado para {status_selectors}"
+            logger.info(
+                "[%s] nenhum texto encontrado para %s",
+                self.operator,
+                status_selectors,
             )
 
         normalized = normalize_text(raw_text)
@@ -828,6 +882,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             for selector in plan_selectors:
                 try:
                     self.step(f"Capturando informacoes de plano no seletor {selector}")
+                    await self._ensure_rendered(page)
                     plan_locator = page.locator(selector).first
                     await plan_locator.wait_for(
                         state="visible", timeout=status_timeout
@@ -846,8 +901,11 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                     and last_error is not None
                 ):
                     self.log_exception(last_error)
-                    print(
-                        f"[{self.operator}] falha ao capturar plano em '{plan_selectors}': {last_error}"
+                    logger.debug(
+                        "[%s] falha ao capturar plano em '%s': %s",
+                        self.operator,
+                        plan_selectors,
+                        last_error,
                     )
 
         if plan_text:
@@ -882,7 +940,9 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             await page.screenshot(path=path, full_page=True)
             return os.path.normpath(path)
         except Exception as exc:
-            print(f"[{self.operator}] falha ao salvar screenshot de erro: {exc}")
+            logger.warning(
+                "[%s] falha ao salvar screenshot de erro: %s", self.operator, exc
+            )
             return None
 
 

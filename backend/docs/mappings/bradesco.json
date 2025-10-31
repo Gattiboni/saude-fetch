@@ -1,10 +1,8 @@
 {
   "operator": "bradesco",
-  "start_url": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
-  "wait_for_any": "input#searchCpfOrCard",
   "block_indicators": [
-    "text=/temporariamente indisponível/i",
-    "text=/verifique se você é humano/i",
+    "text=/temporariamente indispon\u00edvel/i",
+    "text=/verifique se voc\u00ea \u00e9 humano/i",
     "#challenge-running"
   ],
   "steps": [
@@ -15,37 +13,38 @@
     },
     {
       "action": "click",
-      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar'), #adopt-accept-all-button",
-      "timeout_ms": 3000,
+      "selector": "#adopt-accept-all-button, #onetrust-accept-btn-handler, button:has-text('Aceitar cookies')",
+      "timeout_ms": 4000,
       "optional": true
     },
     {
-      "action": "wait_for_timeout",
-      "timeout_ms": 500
+      "action": "wait_for",
+      "selector": "input#searchCpfOrCard",
+      "timeout_ms": 10000
     },
     {
-      "action": "fill",
+      "action": "type",
       "selector": "input#searchCpfOrCard",
-      "timeout_ms": 20000
+      "timeout_ms": 10000
     },
     {
       "action": "keypress",
       "selector": "input#searchCpfOrCard",
       "key": "Enter",
-      "timeout_ms": 15000
+      "timeout_ms": 10000
     },
     {
       "action": "wait_for",
       "selector": [
-        "div.bs-modal__container strong.bs-alert__title",
-        "text=/beneficiário não encontrado/i",
-        "text=/selecione o beneficiário/i"
+        "text=/benefici\u00e1rio n\u00e3o encontrado/i",
+        "text=/selecione o benefici\u00e1rio/i",
+        "div.bs-modal__container strong.bs-alert__title"
       ],
       "timeout_ms": 20000
     },
     {
       "action": "evaluate",
-      "script": "(() => { const el = document.querySelector('div.bs-modal__container strong.bs-alert__title'); if (!el) return 'indefinido'; const txt = (el.innerText || '').trim().toLowerCase(); if (txt.includes('não encontrado')) return 'negativo'; if (txt.includes('selecione o beneficiário')) return 'positivo'; return 'indefinido'; })()",
+      "script": "(() => { const el = document.querySelector('div.bs-modal__container strong.bs-alert__title'); if (!el) return 'indefinido'; const txt = (el.innerText || '').trim().toLowerCase(); if (txt.includes('n\u00e3o encontrado')) return 'negativo'; if (txt.includes('selecione o benefici\u00e1rio')) return 'positivo'; return 'indefinido'; })()",
       "timeout_ms": 10000
     },
     {
@@ -55,7 +54,21 @@
     },
     {
       "action": "wait_for_timeout",
-      "timeout_ms": 300
+      "timeout_ms": 1000
     }
-  ]
+  ],
+  "result_parsing": {
+    "status_selectors": [
+      "div.bs-modal__container strong.bs-alert__title",
+      "text=/benefici\u00e1rio n\u00e3o encontrado/i",
+      "text=/selecione o benefici\u00e1rio/i"
+    ],
+    "positive_keywords": [
+      "SELECIONE O BENEFICI\u00c1RIO"
+    ],
+    "negative_keywords": [
+      "N\u00c3O ENCONTRADO"
+    ],
+    "status_timeout_ms": 20000
+  }
 }

@@ -905,6 +905,13 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
             for ident in list(results_buffer.keys()):
                 await finalize_identifier(ident)
 
+        if results and not any(
+            str(row.get("operator", "")).strip().lower() == "amil" for row in results
+        ):
+            logger.warning(
+                "⚠️ Nenhum resultado da Amil incluído no Excel — revisar filtro ou nome de driver."
+            )
+
         out_df = pd.DataFrame(results)
         xlsx_path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
         build_xlsx_from_results(out_df, xlsx_path)
@@ -1064,33 +1071,39 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
 
 
 def build_xlsx_from_results(df: pd.DataFrame, out_path: str):
-    header = ["CPF", "bradesco", "unimed", "seguros unimed"]
+    default_ops = ["amil", "bradesco", "unimed", "seguros_unimed"]
+    ordered_ops: List[str] = []
+    for op in default_ops:
+        if op not in ordered_ops:
+            ordered_ops.append(op)
+    if "operator" in df.columns:
+        for value in df["operator"].dropna().unique():
+            normalized = str(value).strip().lower()
+            if normalized and normalized not in ordered_ops:
+                ordered_ops.append(normalized)
+    header = ["CPF"] + [op.replace("_", " ") for op in ordered_ops]
     wb = Workbook()
     ws = wb.active
     ws.title = "Consulta CPF"
     ws.append(header)
-    by_cpf = {}
+    by_cpf: Dict[str, Dict[str, str]] = {}
     for _, row in df.iterrows():
         if row.get("type") != "cpf":
             continue
         cpf_digits = str(row.get("input", ""))
         cpf_fmt = format_cpf(cpf_digits)
-        op = str(row.get("operator", "")).lower()
+        if not cpf_fmt:
+            continue
+        op = str(row.get("operator", "")).strip().lower()
         plan = str(row.get("plan", ""))
         status = str(row.get("status", ""))
         val = plan if plan else status
-        if not cpf_fmt:
-            continue
         if cpf_fmt not in by_cpf:
             by_cpf[cpf_fmt] = {}
-        by_cpf[cpf_fmt][op] = val
+        if op:
+            by_cpf[cpf_fmt][op] = val
     for cpf_fmt, ops in by_cpf.items():
-        row = [
-            cpf_fmt,
-            ops.get("bradesco", ""),
-            ops.get("unimed", ""),
-            ops.get("seguros_unimed", ""),
-        ]
+        row = [cpf_fmt] + [ops.get(op, "") for op in ordered_ops]
         ws.append(row)
     for cell in ws["A"]:
         cell.number_format = "@"

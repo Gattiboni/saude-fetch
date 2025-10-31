@@ -143,6 +143,7 @@ class DriverManager:
                         )
                     )
             finally:
+                # Allow browser teardown before starting the next driver.
                 await asyncio.sleep(1)
         return results
 
@@ -310,4 +311,3 @@ class DriverManager:
 
 
 manager = DriverManager()
-
