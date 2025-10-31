@@ -72,19 +72,14 @@ DEFAULT_BLOCK_KEYWORDS = [
     "acesso negado",
 ]
 
+logger = logging.getLogger(__name__)
+
+
 async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
     if async_playwright is None:
         raise ImportError(
             "playwright.async_api is not available; install the 'playwright' package and run 'playwright install' to enable browser automation."
         )
-    pw = await async_playwright().start()
-    chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-    user_dir = os.path.join(os.getcwd(), "chrome_profile_amil")
-    os.makedirs(user_dir, exist_ok=True)
-logger = logging.getLogger(__name__)
-
-
-async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
     pw = await async_playwright().start()
     chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     user_dir = os.path.join(os.getcwd(), "chrome_profile_amil")
@@ -106,7 +101,7 @@ async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
             "--start-maximized",
         ],
     )
-    page = await browser_context.new_page()
+    page = browser_context.pages[0] if browser_context.pages else await browser_context.new_page()
     try:
         await page.evaluate(
             "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
@@ -581,6 +576,27 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 self.step(f"Pressionando tecla {key}")
                 await self.keypress(page, step.get("selector"), key=key, timeout=timeout)
                 self.step(f"Tecla {key} enviada")
+            elif action == "keyboard":
+                key = step.get("key")
+                if not key:
+                    raise ValueError("keyboard action requer 'key'")
+                self.step(f"Pressionando tecla {key} (keyboard)")
+                await page.keyboard.press(key)
+                self.step(f"Tecla {key} enviada")
+                step_log["key"] = key
+            elif action == "evaluate":
+                expression = step.get("expression")
+                if not expression:
+                    raise ValueError("evaluate action requer 'expression'")
+                self.step("Executando script customizado (evaluate)")
+                result = await page.evaluate(expression)
+                step_log["evaluation_result"] = result
+            elif action == "wait_for_timeout":
+                delay_ms = int(step.get("timeout_ms", 0))
+                self.step(f"Aguardando {delay_ms} ms antes de continuar")
+                if delay_ms > 0:
+                    await page.wait_for_timeout(delay_ms)
+                step_log["waited_ms"] = delay_ms
             elif action == "wait_for":
                 selector = step.get("selector")
                 if not selector:
