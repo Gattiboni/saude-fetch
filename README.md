@@ -44,6 +44,12 @@ A aplicação roda localmente, com instalação simplificada e autenticação m�
 
 1. **Instalação**
    - Clonar o repositório.  
+   - Instalar o **Firefox ESR** em `C:\Program Files\Mozilla Firefox\firefox.exe`.  
+   - Após instalar o navegador, execute:
+     ```
+     npx playwright uninstall firefox
+     npx playwright install-deps
+     ```
    - Executar `setup.bat` (Windows) ou `bash setup.sh` (Linux/Mac).  
    - O script cria `.venv`, instala dependências e gera o atalho **Fetch Saúde**.
 

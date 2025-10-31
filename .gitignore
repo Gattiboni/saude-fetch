@@ -39,3 +39,7 @@ frontend/.env
 # OS files
 .DS_Store
 Thumbs.db
+
+# Runtime artifacts
+saude_fetch.pids.json
+playwright/.cache/

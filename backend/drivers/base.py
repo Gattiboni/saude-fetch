@@ -4,7 +4,6 @@ import logging
 import os
 import random
 import re
-import shutil
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -44,6 +43,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data"))
 ERRORS_DIR = os.path.normpath(os.path.join(DATA_DIR, "errors"))
 STORAGE_STATES_DIR = os.path.normpath(os.path.join(DATA_DIR, "storage_states"))
+FIREFOX_ESR_PATH = r"C:\Program Files\Mozilla Firefox\firefox.exe"
 
 os.makedirs(ERRORS_DIR, exist_ok=True)
 os.makedirs(STORAGE_STATES_DIR, exist_ok=True)
@@ -64,6 +64,38 @@ logger = logging.getLogger(__name__)
 
 class BlockedRequestError(Exception):
     """Raised when the remote website indicates an anti-bot block."""
+
+
+async def launch_firefox_esr(
+    *,
+    headless: bool = True,
+    slow_mo: Optional[int] = None,
+    extra_args: Optional[Iterable[str]] = None,
+) -> Any:
+    """
+    Launch Firefox ESR from the fixed corporate path and avoid Playwright's juggler pipe.
+    """
+    if not os.path.exists(FIREFOX_ESR_PATH):
+        raise RuntimeError(
+            f"Firefox ESR not found at {FIREFOX_ESR_PATH}. Install Firefox ESR and verify the path."
+        )
+
+    playwright = await async_playwright().start()
+    launch_kwargs: Dict[str, Any] = {
+        "headless": headless,
+        "executable_path": FIREFOX_ESR_PATH,
+    }
+    if slow_mo is not None:
+        launch_kwargs["slow_mo"] = slow_mo
+
+    args = ["--no-remote", "--foreground"]
+    if extra_args:
+        args.extend(extra_args)
+    launch_kwargs["args"] = args
+
+    browser = await playwright.firefox.launch(**launch_kwargs)
+    setattr(browser, "_playwright_instance", playwright)
+    return browser
 
 
 def normalize_text(value: str) -> str:
@@ -269,35 +301,29 @@ class BaseDriver:
 
     @asynccontextmanager
     async def _persistent_browser(self):
-        playwright = await async_playwright().start()
-        launcher = getattr(playwright, BROWSER_ENGINE, None)
-        if launcher is None:
-            logger.warning("Browser engine %s unsupported, falling back to firefox", BROWSER_ENGINE)
-            launcher = playwright.firefox
+        browser: Optional[Any] = None
+        playwright: Optional[Any] = None
+        context: Optional[Any] = None
+        try:
+            if BROWSER_ENGINE == "firefox":
+                browser = await launch_firefox_esr(headless=True)
+                playwright = getattr(browser, "_playwright_instance", None)
+                if playwright is None:
+                    await browser.close()
+                    raise RuntimeError("Firefox ESR launch did not expose Playwright handle.")
+            else:
+                playwright = await async_playwright().start()
+                launcher = getattr(playwright, BROWSER_ENGINE, None)
+                if launcher is None:
+                    logger.warning(
+                        "Browser engine %s unsupported, falling back to firefox", BROWSER_ENGINE
+                    )
+                    launcher = playwright.firefox
 
-        launch_kwargs: Dict[str, Any] = {"headless": True}
-        if launcher is getattr(playwright, "chromium", None):
-            launch_kwargs["args"] = ["--ignore-certificate-errors"]
-        if launcher is getattr(playwright, "firefox", None):
-            firefox_executable = (
-                shutil.which("firefox")
-                or shutil.which("firefox.exe")
-                or shutil.which("C:/Program Files/Mozilla Firefox/firefox.exe")
-                or shutil.which("C:/Program Files/Mozilla Firefox ESR/firefox.exe")
-                or shutil.which("C:/Program Files (x86)/Mozilla Firefox/firefox.exe")
-                or shutil.which("C:/Program Files (x86)/Mozilla Firefox ESR/firefox.exe")
-            )
-            if not firefox_executable or not os.path.exists(firefox_executable):
-                await playwright.stop()
-                logger.error(
-                    "Firefox ESR executable not found; install Firefox ESR and ensure it is on PATH."
-                )
-                raise RuntimeError(
-                    "Firefox ESR executable not found. Install Firefox ESR and add it to PATH."
-                )
-            launch_kwargs["executable_path"] = firefox_executable
-
-        browser = await launcher.launch(**launch_kwargs)
+                launch_kwargs: Dict[str, Any] = {"headless": True}
+                if launcher is getattr(playwright, "chromium", None):
+                    launch_kwargs["args"] = ["--ignore-certificate-errors"]
+                browser = await launcher.launch(**launch_kwargs)
 
         storage_file = os.path.join(STORAGE_STATES_DIR, f"{self.operator}.json")
         context_kwargs = {"ignore_https_errors": True}
@@ -346,9 +372,12 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                     "[%s] falha ao salvar storage state: %s", self.operator, exc
                 )
         finally:
-            await context.close()
-            await browser.close()
-            await playwright.stop()
+            if context is not None:
+                await context.close()
+            if browser is not None:
+                await browser.close()
+            if playwright is not None:
+                await playwright.stop()
 
     async def _execute_steps(
         self,

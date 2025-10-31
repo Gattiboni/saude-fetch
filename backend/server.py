@@ -3,7 +3,6 @@ import os
 import uuid
 import logging
 import io
-import shutil
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -29,7 +28,7 @@ if LIVE_DEBUG_ENABLED:
     logger.setLevel(logging.DEBUG)
 
 from drivers.driver_manager import manager as driver_manager
-from drivers.base import BaseDriver, DriverResult
+from drivers.base import BaseDriver, DriverResult, launch_firefox_esr
 from utils.logger import JobLogger
 from utils.auth import create_access_token, verify_token, check_credentials, AuthError
 from utils.validators import validate_cpf_cnpj
@@ -403,33 +402,25 @@ async def start_amil_manual(user: str = Depends(require_auth)):
     import secrets
 
     token = secrets.token_urlsafe(8)
-    pw = await async_playwright().start()
-    engine = getattr(pw, AMIL_BROWSER_ENGINE, None)
-    if engine is None:
-        await pw.stop()
-        raise HTTPException(status_code=500, detail=f"Unsupported browser engine: {AMIL_BROWSER_ENGINE}")
-
-    launch_kwargs: Dict[str, Any] = {"headless": False}
+    pw = None
+    browser = None
     if AMIL_BROWSER_ENGINE == "firefox":
-        firefox_executable = (
-            shutil.which('firefox') or
-            shutil.which('firefox.exe') or
-            shutil.which('/usr/bin/firefox') or
-            shutil.which('/usr/local/bin/firefox') or
-            shutil.which('C:/Program Files/Mozilla Firefox/firefox.exe') or
-            shutil.which('C:/Program Files/Mozilla Firefox ESR/firefox.exe') or
-            shutil.which('C:/Program Files (x86)/Mozilla Firefox/firefox.exe') or
-            shutil.which('C:/Program Files (x86)/Mozilla Firefox ESR/firefox.exe')
-        )
-        if not firefox_executable or not os.path.exists(firefox_executable):
-            await pw.stop()
+        browser = await launch_firefox_esr(headless=False, slow_mo=150)
+        pw = getattr(browser, "_playwright_instance", None)
+        if pw is None:
+            await browser.close()
             raise HTTPException(
                 status_code=500,
-                detail='Firefox ESR nao encontrado. Instale a versao ESR e garanta que esteja no PATH.'
+                detail="Falha ao inicializar Playwright para Firefox ESR.",
             )
-        launch_kwargs.update({'slow_mo': 150, 'executable_path': firefox_executable})
-
-    browser = await engine.launch(**launch_kwargs)
+    else:
+        pw = await async_playwright().start()
+        engine = getattr(pw, AMIL_BROWSER_ENGINE, None)
+        if engine is None:
+            await pw.stop()
+            raise HTTPException(status_code=500, detail=f"Unsupported browser engine: {AMIL_BROWSER_ENGINE}")
+        launch_kwargs: Dict[str, Any] = {"headless": False}
+        browser = await engine.launch(**launch_kwargs)
     context = await browser.new_context(
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
