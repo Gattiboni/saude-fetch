@@ -3,6 +3,7 @@ import os
 import uuid
 import logging
 import io
+import sys
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -17,6 +18,11 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
+if sys.platform == "win32":
+    import asyncio
+
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 LIVE_DEBUG_ENABLED = os.getenv("LIVE_DEBUG", "false").lower() == "true"
 
 logging.basicConfig(
@@ -28,14 +34,13 @@ if LIVE_DEBUG_ENABLED:
     logger.setLevel(logging.DEBUG)
 
 from drivers.driver_manager import manager as driver_manager
-from drivers.base import BaseDriver, DriverResult, launch_firefox_esr
+from drivers.base import BaseDriver, DriverResult, launch_chrome_real
 from utils.logger import JobLogger
 from utils.auth import create_access_token, verify_token, check_credentials, AuthError
 from utils.validators import validate_cpf_cnpj
 from db.cache import Cache
 from bson import ObjectId
 
-AMIL_BROWSER_ENGINE = os.getenv("AMIL_ENGINE", "firefox").lower()
 CNPJ_PIPELINE_ENABLED = False
 _manual_pages: Dict[str, dict] = {}
 
@@ -398,51 +403,24 @@ async def start_amil_manual(user: str = Depends(require_auth)):
     Inicia navegador headful para fluxo manual da Amil.
     Retorna token que o frontend usará para rodar a busca.
     """
-    from playwright.async_api import async_playwright
     import secrets
 
     token = secrets.token_urlsafe(8)
-    pw = None
-    browser = None
-    if AMIL_BROWSER_ENGINE == "firefox":
-        browser = await launch_firefox_esr(headless=False, slow_mo=150)
-        pw = getattr(browser, "_playwright_instance", None)
-        if pw is None:
-            await browser.close()
-            raise HTTPException(
-                status_code=500,
-                detail="Falha ao inicializar Playwright para Firefox ESR.",
-            )
-    else:
-        pw = await async_playwright().start()
-        engine = getattr(pw, AMIL_BROWSER_ENGINE, None)
-        if engine is None:
-            await pw.stop()
-            raise HTTPException(status_code=500, detail=f"Unsupported browser engine: {AMIL_BROWSER_ENGINE}")
-        launch_kwargs: Dict[str, Any] = {"headless": False}
-        browser = await engine.launch(**launch_kwargs)
-    context = await browser.new_context(
-        user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/121.0.0.0 Safari/537.36"
-        ),
-        viewport={"width": 1366, "height": 768},
-        locale="pt-BR",
-        timezone_id="America/Sao_Paulo",
-    )
-    page = await context.new_page()
+    browser, context, page = await launch_chrome_real(headless=False, slow_mo=150)
+    logger.debug("[amil] Browser Chrome real iniciado com sucesso.")
 
     _manual_pages[token] = {
-        "playwright": pw,
         "browser": browser,
         "context": context,
         "page": page,
+        "playwright": getattr(browser, "_playwright_instance", None),
         "created_at": datetime.utcnow().isoformat(),
+        "browser_source": "chrome-real",
     }
     return {
         "token": token,
         "note": "Navegador aberto. Cole o link da Amil e carregue a pagina.",
+        "browser_source": "chrome-real",
     }
 
 

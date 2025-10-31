@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from .amil import AmilDriver
 from .bradesco import BradescoDriver
 from .unimed import UnimedDriver

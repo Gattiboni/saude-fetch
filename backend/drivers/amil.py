@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import asyncio
 import os
 from typing import Any, Optional
@@ -6,7 +7,7 @@ from .base import BaseDriver, DriverResult, BlockedRequestError
 
 
 class AmilDriver(BaseDriver):
-    """Driver para Amil com validaÃ§Ã£o do campo CPF apÃ³s renderizaÃ§Ã£o completa da SPA."""
+    """Driver para Amil com validação do campo CPF após renderização completa da SPA."""
 
     def __init__(self) -> None:
         super().__init__("amil", supported_id_types=("cpf",))
@@ -29,15 +30,15 @@ class AmilDriver(BaseDriver):
         page: Optional[Any] = None,
     ) -> DriverResult:
         async def _run(page_obj: Any) -> DriverResult:
-            self.step("Carregando shell principal e injetando hash do formulÃ¡rio")
+            self.step("Carregando shell principal e injetando hash do formulário")
 
             current_url = getattr(page_obj, "url", "") or ""
             current_url_lower = current_url.lower()
 
             if "amil.com.br" in current_url_lower:
-                print("[DEBUG] Iniciando teste de renderizaÃ§Ã£o Amil (modo manual detectado)")
+                print("[DEBUG] Iniciando teste de renderização Amil (modo manual detectado)")
                 if "rede-credenciada/amil" not in current_url_lower:
-                    print("[INFO] Tentando ajustar hash local sem recarregar pÃ¡gina...")
+                    print("[INFO] Tentando ajustar hash local sem recarregar página...")
                     try:
                         await page_obj.evaluate(
                             "if (!window.location.hash.includes('rede-credenciada/amil')) "
@@ -46,14 +47,14 @@ class AmilDriver(BaseDriver):
                     except Exception as exc:
                         print(f"[WARN] Falha ao ajustar hash automaticamente: {exc}")
                 await asyncio.sleep(5)
-                print("[DEBUG] PÃ¡gina pronta, iniciando varredura do DOM.")
+                print("[DEBUG] Página pronta, iniciando varredura do DOM.")
             else:
                 if current_url:
-                    print("[WARN] PÃ¡gina nÃ£o estÃ¡ na Amil â€” abortando execuÃ§Ã£o.")
+                    print("[WARN] Página não está na Amil â€” abortando execução.")
                     raise Exception(
-                        "PÃ¡gina incorreta: abra manualmente a busca Amil antes de executar."
+                        "Página incorreta: abra manualmente a busca Amil antes de executar."
                     )
-                print("[DEBUG] Iniciando teste de renderizaÃ§Ã£o Amil (modo automÃ¡tico)")
+                print("[DEBUG] Iniciando teste de renderização Amil (modo automático)")
                 await page_obj.goto(
                     "https://www.amil.com.br/institucional/",
                     wait_until="commit",
@@ -68,7 +69,7 @@ class AmilDriver(BaseDriver):
             print("[DEBUG] Tamanho do HTML renderizado:", len(html))
             text_snapshot = await page_obj.inner_text("body")
             print(
-                "[DEBUG] Texto visÃ­vel (primeiros 300 chars):",
+                "[DEBUG] Texto visível (primeiros 300 chars):",
                 text_snapshot[:300],
             )
             os.makedirs("debug", exist_ok=True)
@@ -82,21 +83,21 @@ class AmilDriver(BaseDriver):
             except Exception:
                 normalized_html = raw_html
             normalized_html = (
-                normalized_html.replace("Ã¡", "á")
-                .replace("Ã©", "é")
-                .replace("Ãª", "ê")
-                .replace("Ã£", "ã")
-                .replace("Ã³", "ó")
+                normalized_html.replace("á", "á")
+                .replace("é", "é")
+                .replace("ê", "ê")
+                .replace("ã", "ã")
+                .replace("ó", "ó")
             )
 
             visible_text = await page_obj.inner_text("body")
             visible_text_norm = (
                 visible_text.lower()
-                .replace("Ã¡", "á")
-                .replace("Ã©", "é")
-                .replace("Ãª", "ê")
-                .replace("Ã£", "ã")
-                .replace("Ã³", "ó")
+                .replace("á", "á")
+                .replace("é", "é")
+                .replace("ê", "ê")
+                .replace("ã", "ã")
+                .replace("ó", "ó")
             )
 
             self.step("Varredura textual pós-normalização concluída.")
@@ -162,7 +163,7 @@ class AmilDriver(BaseDriver):
             self.step("Aguardando resultado da consulta")
             await asyncio.sleep(3)
 
-            self.step("Capturando screenshot de verificaÃ§Ã£o de layout")
+            self.step("Capturando screenshot de verificação de layout")
             os.makedirs("debug", exist_ok=True)
             await page_obj.screenshot(path=f"debug/amil_{identifier}.png")
 

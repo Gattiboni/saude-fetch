@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import asyncio
 import json
 import logging
@@ -38,12 +39,10 @@ def _resolve_mappings_dir() -> str:
 
 MAPPINGS_DIR = _resolve_mappings_dir()
 _PRINTED_MAPPINGS_DIR = False
-BROWSER_ENGINE = os.getenv("AMIL_ENGINE", "firefox").lower()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data"))
 ERRORS_DIR = os.path.normpath(os.path.join(DATA_DIR, "errors"))
 STORAGE_STATES_DIR = os.path.normpath(os.path.join(DATA_DIR, "storage_states"))
-FIREFOX_ESR_PATH = r"C:\Program Files\Mozilla Firefox\firefox.exe"
 
 os.makedirs(ERRORS_DIR, exist_ok=True)
 os.makedirs(STORAGE_STATES_DIR, exist_ok=True)
@@ -66,36 +65,40 @@ class BlockedRequestError(Exception):
     """Raised when the remote website indicates an anti-bot block."""
 
 
-async def launch_firefox_esr(
-    *,
-    headless: bool = True,
-    slow_mo: Optional[int] = None,
-    extra_args: Optional[Iterable[str]] = None,
-) -> Any:
-    """
-    Launch Firefox ESR from the fixed corporate path and avoid Playwright's juggler pipe.
-    """
-    if not os.path.exists(FIREFOX_ESR_PATH):
-        raise RuntimeError(
-            f"Firefox ESR not found at {FIREFOX_ESR_PATH}. Install Firefox ESR and verify the path."
-        )
+async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
+    chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+    if not os.path.exists(chrome_path):
+        raise RuntimeError(f"Chrome não encontrado em {chrome_path}")
 
-    playwright = await async_playwright().start()
-    launch_kwargs: Dict[str, Any] = {
-        "headless": headless,
-        "executable_path": FIREFOX_ESR_PATH,
-    }
-    if slow_mo is not None:
-        launch_kwargs["slow_mo"] = slow_mo
+    pw = await async_playwright().start()
 
-    args = ["--no-remote", "--foreground"]
-    if extra_args:
-        args.extend(extra_args)
-    launch_kwargs["args"] = args
+    browser = await pw.chromium.launch(
+        headless=headless,
+        slow_mo=slow_mo,
+        executable_path=chrome_path,
+        args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+    )
 
-    browser = await playwright.firefox.launch(**launch_kwargs)
-    setattr(browser, "_playwright_instance", playwright)
-    return browser
+    context = await browser.new_context(
+        ignore_https_errors=True,
+        viewport={"width": 1366, "height": 768},
+        locale="pt-BR",
+        timezone_id="America/Sao_Paulo"
+    )
+
+    page = await context.new_page()
+
+    await page.add_init_script("""
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        window.chrome = {runtime: {}};
+        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
+        Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
+    """)
+
+    await context.grant_permissions(["geolocation"])
+
+    browser._playwright_instance = pw
+    return browser, context, page
 
 
 def normalize_text(value: str) -> str:
@@ -147,7 +150,7 @@ class BaseDriver:
             except Exception as e:
                 print(f"[{self.operator}] erro ao carregar mapping: {e}")
         else:
-            print(f"[{self.operator}] mapping não encontrado em {self.mapping_path}")
+            print(f"[{self.operator}] mapping nao encontrado em {self.mapping_path}")
 
     def _load_mapping(self):
         """Permite reload sem recriar a instância."""
@@ -261,7 +264,7 @@ class BaseDriver:
         """
         Implementação base:
         - Se houver 'steps' no mapping, executa o fluxo declarativo.
-        - Senão, tenta legado via selectors.cpf / selectors.submit.
+        - Senao, tenta legado via selectors.cpf / selectors.submit.
         """
         if not self.mapping:
             raise Exception("mapping ausente para este driver")
@@ -301,81 +304,47 @@ class BaseDriver:
 
     @asynccontextmanager
     async def _persistent_browser(self):
-        browser: Optional[Any] = None
-        playwright: Optional[Any] = None
-        context: Optional[Any] = None
-        try:
-            if BROWSER_ENGINE == "firefox":
-                browser = await launch_firefox_esr(headless=True)
-                playwright = getattr(browser, "_playwright_instance", None)
-                if playwright is None:
-                    await browser.close()
-                    raise RuntimeError("Firefox ESR launch did not expose Playwright handle.")
-            else:
-                playwright = await async_playwright().start()
-                launcher = getattr(playwright, BROWSER_ENGINE, None)
-                if launcher is None:
-                    logger.warning(
-                        "Browser engine %s unsupported, falling back to firefox", BROWSER_ENGINE
-                    )
-                    launcher = playwright.firefox
-
-                launch_kwargs: Dict[str, Any] = {"headless": True}
-                if launcher is getattr(playwright, "chromium", None):
-                    launch_kwargs["args"] = ["--ignore-certificate-errors"]
-                browser = await launcher.launch(**launch_kwargs)
+        browser, context, page = await launch_chrome_real(headless=False, slow_mo=150)
 
         storage_file = os.path.join(STORAGE_STATES_DIR, f"{self.operator}.json")
-        context_kwargs = {"ignore_https_errors": True}
-        if self.operator == "amil":
-            context_kwargs.update(
-                {
-                    "user_agent": (
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/121.0.0.0 Safari/537.36"
-                    ),
-                    "viewport": {"width": 1366, "height": 768},
-                    "locale": "pt-BR",
-                    "timezone_id": "America/Sao_Paulo",
-                    "permissions": ["geolocation"],
-                }
-            )
         if os.path.exists(storage_file):
-            context_kwargs["storage_state"] = storage_file
+            await context.close()
+            context = await browser.new_context(
+                ignore_https_errors=True,
+                viewport={"width": 1366, "height": 768},
+                locale="pt-BR",
+                timezone_id="America/Sao_Paulo",
+                storage_state=storage_file,
+            )
+            page = await context.new_page()
+            await page.add_init_script(
+                """
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        window.chrome = {runtime: {}};
+        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
+        Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
+    """
+            )
+        await context.grant_permissions(["geolocation"])
 
-        context = await browser.new_context(**context_kwargs)
-        page = await context.new_page()
         if self.operator == "amil":
             await page.set_extra_http_headers(
                 {
                     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
                     "Referer": "https://www.amil.com.br/",
-                    "DNT": "1",
-                    "Upgrade-Insecure-Requests": "1",
                 }
             )
-            await page.add_init_script(
-                """
-Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-window.chrome = {runtime: {}};
-Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
-Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
-"""
-            )
+
         try:
             yield page
             try:
                 await context.storage_state(path=storage_file)
             except Exception as exc:
-                logger.debug(
-                    "[%s] falha ao salvar storage state: %s", self.operator, exc
-                )
+                logger.debug("[%s] falha ao salvar storage state: %s", self.operator, exc)
         finally:
-            if context is not None:
-                await context.close()
-            if browser is not None:
-                await browser.close()
+            await context.close()
+            await browser.close()
+            playwright = getattr(browser, "_playwright_instance", None)
             if playwright is not None:
                 await playwright.stop()
 
@@ -787,3 +756,6 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
         except Exception as exc:
             print(f"[{self.operator}] falha ao salvar screenshot de erro: {exc}")
             return None
+
+
+
