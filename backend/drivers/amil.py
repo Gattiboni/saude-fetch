@@ -112,42 +112,28 @@ class AmilDriver(BaseDriver):
             self.step("Buscando input associado ao texto encontrado")
             cpf_input = None
 
-            cpf_locator = page_obj.locator(
-                "section:has-text('Passo 1') input[placeholder*='Beneficiário'], "
-                "div[class*='step']:has-text('Nº do Beneficiário') input[placeholder*='Beneficiário'], "
-                "div[class*='step']:has-text('Selecione o plano ou rede') input[placeholder*='Beneficiário']"
-            )
-            try:
-                if await cpf_locator.count():
-                    candidate = await cpf_locator.nth(0).element_handle()
-                    if candidate:
-                        tag_name = await candidate.evaluate("(el) => (el.tagName || '').toLowerCase()")
-                        if tag_name == 'input':
-                            cpf_input = candidate
-            except Exception:
-                cpf_input = None
+            cpf_input = await page_obj.query_selector("#cpf_input")
 
             if cpf_input is None:
-                candidate = await page_obj.query_selector(
-                    "form input[type='text'][placeholder*='Beneficiário']"
+                cpf_input = await page_obj.query_selector(
+                    "input[placeholder*='Beneficiário'], input[placeholder*='Beneficiario']"
                 )
-                if candidate:
-                    placeholder_check = (await candidate.get_attribute("placeholder") or "").lower()
-                    is_visible = await page_obj.evaluate("(el) => Boolean(el and el.offsetParent)", candidate)
-                    if is_visible and ('beneficiário' in placeholder_check or 'beneficiario' in placeholder_check or 'cpf' in placeholder_check):
-                        cpf_input = candidate
 
             if cpf_input is None:
                 cpf_input_handle = await page_obj.evaluate_handle(
                     """
                     () => {
-                        const candidates = Array.from(document.querySelectorAll("input[placeholder*='Beneficiário']"));
-                        for (const el of candidates) {
-                            if (!el || el.tagName !== 'INPUT') continue;
-                            const visible = el.offsetParent !== null;
-                            const placeholder = (el.placeholder || '').toLowerCase();
-                            const withinMain = !!el.closest('main, section, div[class*\"step\"]');
-                            if (visible && withinMain && (placeholder.includes('beneficiário') || placeholder.includes('beneficiario') || placeholder.includes('cpf'))) {
+                        const all = Array.from(document.querySelectorAll('input'));
+                        for (const el of all) {
+                            if (!el) continue;
+                            const placeholder = (el.getAttribute('placeholder') || '')
+                                .normalize('NFD')
+                                .replace(/[̀-ͯ]/g, '');
+                            const label = (el.getAttribute('label') || '')
+                                .normalize('NFD')
+                                .replace(/[̀-ͯ]/g, '');
+                            const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+                            if (visible && (placeholder.includes('Beneficiario') || label.includes('Beneficiario'))) {
                                 return el;
                             }
                         }
@@ -159,12 +145,13 @@ class AmilDriver(BaseDriver):
                     cpf_input = cpf_input_handle.as_element()
 
             if cpf_input is None:
-                raise Exception("Campo 'Nº do Beneficiário ou CPF' não encontrado ou inválido.")
+                raise Exception("Campo 'Nº do Beneficiário ou CPF' não encontrado.")
 
-            placeholder = (await cpf_input.get_attribute("placeholder") or "")
-            if 'beneficiário' not in placeholder and 'Beneficiário' not in placeholder and 'CPF' not in placeholder:
-                raise Exception("Elemento identificado não corresponde ao campo de CPF do formulário.")
+            tag_name = await cpf_input.evaluate("(el) => el.tagName.toLowerCase()")
+            if tag_name != "input":
+                raise Exception("Elemento localizado não é um campo de input.")
 
+            placeholder = await cpf_input.get_attribute("placeholder") or ""
             self.step(f"Campo CPF localizado (placeholder={placeholder}), preenchendo valor.")
             await cpf_input.click()
             await cpf_input.fill(identifier)
