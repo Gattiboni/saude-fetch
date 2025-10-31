@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import logging
 import os
-from typing import Any, Dict, Optional
+import unicodedata
+from typing import Any, Optional
 
 from .base import BaseDriver, DriverResult, BlockedRequestError
 
 
-logger = logging.getLogger(__name__)
+def _normalize_accents(txt: str) -> str:
+    if not txt:
+        return ""
+    # NFD + remoção de marks -> sem acento
+    return "".join(c for c in unicodedata.normalize("NFD", txt) if unicodedata.category(c) != "Mn")
 
 
 class AmilDriver(BaseDriver):
-    """Driver para Amil com validacao do campo CPF apos renderizacao completa da SPA."""
+    """Driver para Amil com validação do campo CPF após renderização completa da SPA."""
 
     def __init__(self) -> None:
         super().__init__("amil", supported_id_types=("cpf",))
@@ -34,15 +38,15 @@ class AmilDriver(BaseDriver):
         page: Optional[Any] = None,
     ) -> DriverResult:
         async def _run(page_obj: Any) -> DriverResult:
-            self.step("Carregando shell principal e injetando hash do formulario")
+            self.step("Carregando shell principal e injetando hash do formulário")
 
             current_url = getattr(page_obj, "url", "") or ""
             current_url_lower = current_url.lower()
 
             if "amil.com.br" in current_url_lower:
-                print("[DEBUG] Iniciando teste de renderizacao Amil (modo manual detectado)")
+                print("[DEBUG] Iniciando teste de renderização Amil (modo manual detectado)")
                 if "rede-credenciada/amil" not in current_url_lower:
-                    print("[INFO] Tentando ajustar hash local sem recarregar pagina...")
+                    print("[INFO] Tentando ajustar hash local sem recarregar página...")
                     try:
                         await page_obj.evaluate(
                             "if (!window.location.hash.includes('rede-credenciada/amil')) "
@@ -51,14 +55,14 @@ class AmilDriver(BaseDriver):
                     except Exception as exc:
                         print(f"[WARN] Falha ao ajustar hash automaticamente: {exc}")
                 await asyncio.sleep(5)
-                print("[DEBUG] Pagina pronta, iniciando varredura do DOM.")
+                print("[DEBUG] Página pronta, iniciando varredura do DOM.")
             else:
                 if current_url:
-                    print("[WARN] Pagina nao esta na Amil a abortando execucao.")
+                    print("[WARN] Página não está na Amil — abortando execução.")
                     raise Exception(
-                        "Pagina incorreta: abra manualmente a busca Amil antes de executar."
+                        "Página incorreta: abra manualmente a busca Amil antes de executar."
                     )
-                print("[DEBUG] Iniciando teste de renderizacao Amil (modo automatico)")
+                print("[DEBUG] Iniciando teste de renderização Amil (modo automático)")
                 await page_obj.goto(
                     "https://www.amil.com.br/institucional/",
                     wait_until="commit",
@@ -73,7 +77,7 @@ class AmilDriver(BaseDriver):
             print("[DEBUG] Tamanho do HTML renderizado:", len(html))
             text_snapshot = await page_obj.inner_text("body")
             print(
-                "[DEBUG] Texto visivel (primeiros 300 chars):",
+                "[DEBUG] Texto visível (primeiros 300 chars):",
                 text_snapshot[:300],
             )
             os.makedirs("debug", exist_ok=True)
@@ -86,16 +90,23 @@ class AmilDriver(BaseDriver):
                 normalized_html = raw_html.encode("latin1").decode("utf-8", errors="ignore")
             except Exception:
                 normalized_html = raw_html
+            normalized_html = (
+                normalized_html.replace("á", "á")
+                .replace("é", "é")
+                .replace("ê", "ê")
+                .replace("ã", "ã")
+                .replace("ó", "ó")
+            )
 
             visible_text = await page_obj.inner_text("body")
-            visible_text_norm = visible_text.lower()
+            visible_text_norm = _normalize_accents(visible_text).lower()
 
-            self.step("Varredura textual apos normalizacao concluida.")
+            self.step("Varredura textual pós-normalização concluída.")
 
-            if "beneficiario" not in visible_text_norm:
-                raise Exception("Texto 'Beneficiario ou CPF' nao encontrado - possivel mismatch de encoding.")
-
-            self.step("Texto 'Beneficiario ou CPF' localizado com sucesso (encoding normalizado).")
+            if ("beneficiario" in visible_text_norm) or ("cpf" in visible_text_norm):
+                self.step("Texto 'Beneficiário ou CPF' localizado no corpo da página (normalizado).")
+            else:
+                self.step("Texto 'Beneficiário ou CPF' não apareceu no corpo da página após normalização; seguindo para localizar o campo diretamente.")
 
             self.step("Buscando input associado ao texto encontrado")
             cpf_input = None
@@ -104,7 +115,7 @@ class AmilDriver(BaseDriver):
 
             if cpf_input is None:
                 cpf_input = await page_obj.query_selector(
-                    "input[placeholder*='Beneficiario'], input[placeholder*='Beneficiario']"
+                    "input[placeholder*='Beneficiário'], input[placeholder*='Beneficiario']"
                 )
 
             if cpf_input is None:
@@ -116,10 +127,10 @@ class AmilDriver(BaseDriver):
                             if (!el) continue;
                             const placeholder = (el.getAttribute('placeholder') || '')
                                 .normalize('NFD')
-                                .replace(/[-]/g, '');
+                                .replace(/[̀-ͯ]/g, '');
                             const label = (el.getAttribute('label') || '')
                                 .normalize('NFD')
-                                .replace(/[-]/g, '');
+                                .replace(/[̀-ͯ]/g, '');
                             const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
                             if (visible && (placeholder.includes('Beneficiario') || label.includes('Beneficiario'))) {
                                 return el;
@@ -133,11 +144,11 @@ class AmilDriver(BaseDriver):
                     cpf_input = cpf_input_handle.as_element()
 
             if cpf_input is None:
-                raise Exception("Campo 'No do Beneficiario ou CPF' nao encontrado.")
+                raise Exception("Campo 'Nº do Beneficiário ou CPF' não encontrado.")
 
             tag_name = await cpf_input.evaluate("(el) => el.tagName.toLowerCase()")
             if tag_name != "input":
-                raise Exception("Elemento localizado nao e um campo de input.")
+                raise Exception("Elemento localizado não é um campo de input.")
 
             placeholder = await cpf_input.get_attribute("placeholder") or ""
             self.step(f"Campo CPF localizado (placeholder={placeholder}), preenchendo valor.")
@@ -146,70 +157,34 @@ class AmilDriver(BaseDriver):
 
             self.step("Pressionando ENTER")
             await page_obj.keyboard.press("Enter")
+
             self.step("Aguardando resultado da consulta")
+            await asyncio.sleep(3)
 
-            debug_info: Dict[str, Any] = {}
+            self.step("Capturando screenshot de verificação de layout")
+            os.makedirs("debug", exist_ok=True)
+            await page_obj.screenshot(path=f"debug/amil_{identifier}.png")
 
-            try:
-                await page_obj.wait_for_selector("text=Plano ou rede:", timeout=8000)
-            except Exception:
-                logger.debug("[amil] Timeout aguardando campo 'Plano ou rede', tentando detectar modal.")
-                debug_info["wait_timeout"] = True
+            parsing = (self.mapping or {}).get("result_parsing", {})
+            if parsing:
+                status, plan, message, debug = await self._parse_result(page_obj, parsing)
+            else:
+                status, plan, message, debug = "indefinido", "", "", {}
+            debug.setdefault("steps_extra", True)
 
-            try:
-                aviso_modal = await page_obj.query_selector("text='Aviso'")
-                if aviso_modal:
-                    texto_modal = await page_obj.text_content("text='Nenhum resultado encontrado.'")
-                    if texto_modal:
-                        logger.debug("[amil] Resultado negativo detectado via modal.")
-                        self.step("Resultado negativo detectado via modal da Amil.")
-                        debug_info["status_source"] = "modal"
-                        return DriverResult(
-                            operator=self.operator,
-                            status="negativo",
-                            plan="-",
-                            message="Nenhum resultado encontrado.",
-                            debug=debug_info,
-                            identifier=identifier,
-                            id_type=id_type,
-                        )
-            except Exception as exc:
-                logger.debug("[amil] Nenhum modal de aviso encontrado: %s", exc)
-                debug_info["modal_error"] = str(exc)
-
-            try:
-                value_el = await page_obj.query_selector("div.search-select-redux .rw-input")
-                if value_el:
-                    plano_nome = (await value_el.text_content() or "").strip()
-                    if plano_nome and plano_nome.lower() != "plano ou rede":
-                        logger.debug("[amil] Plano detectado: %s", plano_nome)
-                        self.step(f"Resultado positivo identificado: {plano_nome}")
-                        debug_info["status_source"] = "campo_plano"
-                        return DriverResult(
-                            operator=self.operator,
-                            status="positivo",
-                            plan=plano_nome,
-                            message="Plano identificado com sucesso.",
-                            debug=debug_info,
-                            identifier=identifier,
-                            id_type=id_type,
-                        )
-            except Exception as exc:
-                logger.debug("[amil] Falha ao capturar nome do plano: %s", exc)
-                debug_info["plano_error"] = str(exc)
-
-            logger.debug("[amil] Nenhum status reconhecido: nem modal nem campo de plano renderizado.")
-            self.step("Nenhum status reconhecido apos a consulta.")
-            debug_info["status_source"] = "indefinido"
+            self.step(
+                f"Resultado final: status={status} | plano={plan or '-'} | mensagem={message or '-'}"
+            )
             return DriverResult(
                 operator=self.operator,
-                status="erro",
-                plan="-",
-                message="status_selector ausente",
-                debug=debug_info,
+                status=status,
+                plan=plan,
+                message=message,
+                debug=debug,
                 identifier=identifier,
                 id_type=id_type,
             )
+
         if page is not None:
             try:
                 return await _run(page)
