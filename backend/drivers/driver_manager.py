@@ -142,6 +142,8 @@ class DriverManager:
                             id_type=id_type,
                         )
                     )
+            finally:
+                await asyncio.sleep(1)
         return results
 
     async def _run_driver_batch(
@@ -308,5 +310,4 @@ class DriverManager:
 
 
 manager = DriverManager()
-
 

@@ -145,6 +145,7 @@ class DriverResult:
     debug: Dict[str, Any] = field(default_factory=dict)
     identifier: str = ""
     id_type: str = ""
+    evaluation_result: Optional[str] = ""
 
 class BaseDriver:
     """
@@ -211,8 +212,6 @@ class BaseDriver:
         if detail:
             message = f"{message}: {detail}"
         logger.info(message)
-        print(message)
-
     def log_exception(self, error: Exception) -> None:
         logger.error(f"[{self.operator}] ERRO durante execucao: {error}")
         print(f"[DEBUG] [{self.operator}] ERRO durante execucao: {error}")
@@ -418,8 +417,24 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             except Exception as exc:
                 logger.debug("[%s] falha ao salvar storage state: %s", self.operator, exc)
         finally:
-            await context.close()
-            await browser.close()
+            try:
+                if hasattr(context, "is_closed"):
+                    if not context.is_closed():
+                        await context.close()
+                else:
+                    await context.close()
+            except Exception as exc:
+                logger.debug("[%s] falha ao fechar contexto: %s", self.operator, exc)
+
+            try:
+                if hasattr(browser, "is_connected"):
+                    if browser.is_connected():
+                        await browser.close()
+                else:
+                    await browser.close()
+            except Exception as exc:
+                logger.debug("[%s] falha ao fechar navegador: %s", self.operator, exc)
+
             playwright = getattr(browser, "_playwright_instance", None)
             if playwright is not None:
                 await playwright.stop()
@@ -447,6 +462,8 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             "mapping_path": self.mapping_path,
             "steps": [],
         }
+        self._last_evaluation_result = None
+        logger.info(f"===== [{self.operator}] INÍCIO CPF {identifier} =====")
 
         try:
             if url:
@@ -479,6 +496,11 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             if screenshot_path:
                 run_debug.setdefault("artifacts", {})["screenshot"] = screenshot_path
             run_debug.setdefault("error", str(error))
+            evaluation_result = getattr(self, "_last_evaluation_result", None)
+            logger.info(
+                f"[{self.operator}] status=erro | plano=- | mensagem={error}"
+            )
+            logger.info(f"===== [{self.operator}] FIM CPF {identifier} (erro) =====")
             return DriverResult(
                 operator=self.operator,
                 status="erro",
@@ -487,7 +509,10 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 debug=run_debug,
                 identifier=identifier,
                 id_type=id_type,
+                evaluation_result=evaluation_result or "",
             )
+
+        evaluation_result = getattr(self, "_last_evaluation_result", None)
 
         result = DriverResult(
             operator=self.operator,
@@ -497,15 +522,19 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             debug=run_debug,
             identifier=identifier,
             id_type=id_type,
+            evaluation_result=evaluation_result or "",
         )
+        if evaluation_result is not None:
+            result.debug.setdefault("evaluation_result", evaluation_result)
 
-        if run_debug.get("block_detected") and str(result.status or "").lower() == "indefinido":
-            raise Exception("indicativo de bloqueio detectado na pagina")
+        if run_debug.get("block_detected"):
+            if str(evaluation_result or "").strip().lower() in {"", "indefinido", "none"}:
+                raise Exception("indicativo de bloqueio detectado na pagina")
 
         logger.info(
             f"[{self.operator}] status={status or '-'} | plano={plan or '-'} | mensagem={message or '-'}"
         )
-        print(f"[{self.operator}] status={status or '-'} | plano={plan or '-'} | mensagem={message or '-'}")
+        logger.info(f"===== [{self.operator}] FIM CPF {identifier} ({status or '-'}) =====")
         return result
 
     async def _run_step(
@@ -591,10 +620,21 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 self.step(f"Tecla {key} enviada")
                 step_log["key"] = key
             elif action == "evaluate":
-                expression = step.get("expression")
-                if not expression:
-                    raise ValueError("evaluate action requer 'expression'")
-                result = await page.evaluate(expression)
+                script = step.get("script") or step.get("expression")
+                if not script:
+                    raise ValueError("evaluate action requer 'script' ou 'expression'")
+                try:
+                    await page.wait_for_timeout(500)
+                except Exception:
+                    pass
+                modal_selector = "div.bs-modal__container strong.bs-alert__title"
+                modal_timeout = timeout or 5000
+                try:
+                    await page.wait_for_selector(modal_selector, timeout=modal_timeout)
+                except Exception:
+                    pass
+                result = await page.evaluate(script)
+                self._last_evaluation_result = result
                 step_log["evaluation_result"] = result
             elif action == "wait_for_timeout":
                 delay_ms = int(step.get("timeout_ms", 0))
