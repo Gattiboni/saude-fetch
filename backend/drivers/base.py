@@ -38,6 +38,7 @@ def _resolve_mappings_dir() -> str:
 
 MAPPINGS_DIR = _resolve_mappings_dir()
 _PRINTED_MAPPINGS_DIR = False
+BROWSER_ENGINE = os.getenv("AMIL_ENGINE", "firefox").lower()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data"))
 ERRORS_DIR = os.path.normpath(os.path.join(DATA_DIR, "errors"))
@@ -268,9 +269,16 @@ class BaseDriver:
     @asynccontextmanager
     async def _persistent_browser(self):
         playwright = await async_playwright().start()
-        chromium = await playwright.chromium.launch(
-            headless=True, args=["--ignore-certificate-errors"]
-        )
+        launcher = getattr(playwright, BROWSER_ENGINE, None)
+        if launcher is None:
+            logger.warning("Browser engine %s unsupported, falling back to firefox", BROWSER_ENGINE)
+            launcher = playwright.firefox
+
+        launch_kwargs: Dict[str, Any] = {"headless": True}
+        if launcher is getattr(playwright, "chromium", None):
+            launch_kwargs["args"] = ["--ignore-certificate-errors"]
+
+        browser = await launcher.launch(**launch_kwargs)
 
         storage_file = os.path.join(STORAGE_STATES_DIR, f"{self.operator}.json")
         context_kwargs = {"ignore_https_errors": True}
@@ -291,7 +299,7 @@ class BaseDriver:
         if os.path.exists(storage_file):
             context_kwargs["storage_state"] = storage_file
 
-        context = await chromium.new_context(**context_kwargs)
+        context = await browser.new_context(**context_kwargs)
         page = await context.new_page()
         if self.operator == "amil":
             await page.set_extra_http_headers(
@@ -320,7 +328,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 )
         finally:
             await context.close()
-            await chromium.close()
+            await browser.close()
             await playwright.stop()
 
     async def _execute_steps(

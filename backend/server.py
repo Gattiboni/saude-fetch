@@ -35,7 +35,10 @@ from utils.validators import validate_cpf_cnpj
 from db.cache import Cache
 from bson import ObjectId
 
+AMIL_BROWSER_ENGINE = os.getenv("AMIL_ENGINE", "firefox").lower()
 CNPJ_PIPELINE_ENABLED = False
+_manual_pages: Dict[str, dict] = {}
+
 
 
 # --- APP PRINCIPAL ---
@@ -400,7 +403,16 @@ async def start_amil_manual(user: str = Depends(require_auth)):
 
     token = secrets.token_urlsafe(8)
     pw = await async_playwright().start()
-    browser = await pw.chromium.launch(headless=False)
+    engine = getattr(pw, AMIL_BROWSER_ENGINE, None)
+    if engine is None:
+        await pw.stop()
+        raise HTTPException(status_code=500, detail=f"Unsupported browser engine: {AMIL_BROWSER_ENGINE}")
+
+    launch_kwargs: Dict[str, Any] = {"headless": False}
+    if AMIL_BROWSER_ENGINE == "firefox":
+        launch_kwargs["slow_mo"] = 150
+
+    browser = await engine.launch(**launch_kwargs)
     context = await browser.new_context(
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -1362,5 +1374,3 @@ def write_last_run_log(
     os.makedirs(LOGS_DIR, exist_ok=True)
     with open(LAST_RUN_LOG, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
-CNPJ_PIPELINE_ENABLED = False
-_manual_pages: Dict[str, dict] = {}
