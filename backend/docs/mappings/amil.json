@@ -45,7 +45,21 @@
     }
   ],
   "result_parsing": {
-    "negative_selector": "div.modal-content:has-text('não encontramos')",
-    "positive_selector": "div.rw-dropdown-list-input"
+  "status_selectors": [
+    "div.modal-content",
+    "div.rw-input.rw-dropdown-list-input"
+  ],
+  "negative_keywords": [
+    "aviso",
+    "nenhum resultado",
+    "não encontramos",
+    "nao encontramos",
+    "não encontrado",
+    "nao encontrado"
+  ],
+  "neutral_keywords": ["plano ou rede"],
+  "plan_selectors": ["div.rw-input.rw-dropdown-list-input"],
+  "status_timeout_ms": 10000,
+  "status_poll_interval_ms": 400
   }
 }

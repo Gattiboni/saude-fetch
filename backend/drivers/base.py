@@ -62,51 +62,27 @@ logger = logging.getLogger(__name__)
 
 
 async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
-    chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-    if not os.path.exists(chrome_path):
-        raise RuntimeError(f"Chrome nao encontrado em {chrome_path}")
-
-    from playwright.async_api import async_playwright
-
     pw = await async_playwright().start()
-    logger.debug("[amil] Browser path: %s", chrome_path)
+    chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    user_dir = os.path.join(os.getcwd(), "chrome_profile_amil")
+    os.makedirs(user_dir, exist_ok=True)
 
-    browser = await pw.chromium.launch(
+    # Abre Chrome real com contexto persistente e janela separada
+    browser_context = await pw.chromium.launch_persistent_context(
+        user_dir,
         headless=headless,
         slow_mo=slow_mo,
         executable_path=chrome_path,
         args=[
             "--no-sandbox",
             "--disable-blink-features=AutomationControlled",
-            "--disable-dev-shm-usage",
-            "--disable-extensions",
-            "--disable-gpu",
-            "--start-maximized",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--new-window",
         ],
     )
-
-    context = await browser.new_context(
-        ignore_https_errors=True,
-        viewport={"width": 1366, "height": 768},
-        locale="pt-BR",
-        timezone_id="America/Sao_Paulo",
-    )
-
-    page = await context.new_page()
-
-    await page.add_init_script(
-        """
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        window.chrome = {runtime: {}};
-        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
-        Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
-        """
-    )
-
-    await context.grant_permissions(["geolocation"])
-
-    browser._playwright_instance = pw
-    return browser, context, page
+    page = await browser_context.new_page()
+    return browser_context.browser, browser_context, page
 
 
 

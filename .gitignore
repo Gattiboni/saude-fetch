@@ -43,3 +43,8 @@ Thumbs.db
 # Runtime artifacts
 saude_fetch.pids.json
 playwright/.cache/
+
+# Debugs e Chrome real
+backend/debug/
+backend/chrome_profile_amil/
+
