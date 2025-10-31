@@ -33,7 +33,7 @@ def _resolve_mappings_dir() -> str:
         if os.path.isdir(candidate):
             return candidate
 
-    # 4) Último recurso: volta para o 1º candidato (mesmo que não exista)
+    # 4) Ultimo recurso: volta para o 1o candidato (mesmo que nao exista)
     return candidates[0]
 
 
@@ -64,15 +64,25 @@ logger = logging.getLogger(__name__)
 async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
     chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
     if not os.path.exists(chrome_path):
-        raise RuntimeError(f"Chrome não encontrado em {chrome_path}")
+        raise RuntimeError(f"Chrome nao encontrado em {chrome_path}")
+
+    from playwright.async_api import async_playwright
 
     pw = await async_playwright().start()
+    logger.debug("[amil] Browser path: %s", chrome_path)
 
     browser = await pw.chromium.launch(
         headless=headless,
         slow_mo=slow_mo,
         executable_path=chrome_path,
-        args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+        args=[
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--disable-extensions",
+            "--disable-gpu",
+            "--start-maximized",
+        ],
     )
 
     context = await browser.new_context(
@@ -99,12 +109,13 @@ async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
     return browser, context, page
 
 
+
 class BlockedRequestError(Exception):
     """Raised when the remote website indicates an anti-bot block."""
 
 
 def normalize_text(value: str) -> str:
-    """Normaliza texto removendo espaços repetidos e padronizando para maiúsculas."""
+    """Normaliza texto removendo espacos repetidos e padronizando para maiusculas."""
     if not value:
         return ""
     cleaned = value.replace("\u00A0", " ")
@@ -125,9 +136,9 @@ class DriverResult:
 
 class BaseDriver:
     """
-    Contrato mínimo exigido pelo pipeline:
+    Contrato minimo exigido pelo pipeline:
     - .operator (lowercase)
-    - .name     (igual ao operator; algumas partes do código usam .name)
+    - .name     (igual ao operator; algumas partes do codigo usam .name)
     - .mapping  (dict carregado a partir de <MAPPINGS_DIR>/<OPERATOR>.json)
     - .consult(identifier, id_type) -> DriverResult
     """
@@ -155,7 +166,7 @@ class BaseDriver:
             print(f"[{self.operator}] mapping nao encontrado em {self.mapping_path}")
 
     def _load_mapping(self):
-        """Permite reload sem recriar a instância."""
+        """Permite reload sem recriar a instancia."""
         resolved_path = self._resolve_mapping_path()
         if resolved_path != self.mapping_path:
             print(
@@ -174,11 +185,11 @@ class BaseDriver:
         print(f"[DEBUG] [{self.operator}] {message}")
 
     def log_exception(self, error: Exception) -> None:
-        logger.error(f"[{self.operator}] ERRO durante execução: {error}")
-        print(f"[DEBUG] [{self.operator}] ERRO durante execução: {error}")
+        logger.error(f"[{self.operator}] ERRO durante execucao: {error}")
+        print(f"[DEBUG] [{self.operator}] ERRO durante execucao: {error}")
 
     def _resolve_mapping_path(self) -> str:
-        """Resolve o caminho do mapping aceitando variações de nomenclatura."""
+        """Resolve o caminho do mapping aceitando variacoes de nomenclatura."""
         base_filename = f"{self.operator}.json"
         candidates = [os.path.join(MAPPINGS_DIR, base_filename)]
 
@@ -194,7 +205,7 @@ class BaseDriver:
             if os.path.exists(candidate):
                 if candidate != candidates[0]:
                     print(
-                        f"[{self.operator}] mapping encontrado usando variação de nome: {candidate}"
+                        f"[{self.operator}] mapping encontrado usando variacao de nome: {candidate}"
                     )
                 return candidate
 
@@ -264,7 +275,7 @@ class BaseDriver:
         page: Optional[Any] = None,
     ) -> DriverResult:
         """
-        Implementação base:
+        Implementacao base:
         - Se houver 'steps' no mapping, executa o fluxo declarativo.
         - Senao, tenta legado via selectors.cpf / selectors.submit.
         """
@@ -603,7 +614,7 @@ class BaseDriver:
             raise TimeoutError(
                 f"Nenhum seletor em {selector_list} foi encontrado: {last_error}"
             )
-        raise TimeoutError(f"Nenhum seletor válido informado: {selector_list}")
+        raise TimeoutError(f"Nenhum seletor valido informado: {selector_list}")
 
     async def _parse_result(self, page: Any, parsing: Dict[str, Any]):
         status_selectors = parsing.get("status_selectors") or (
