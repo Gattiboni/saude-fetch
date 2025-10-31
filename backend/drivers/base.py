@@ -281,15 +281,19 @@ class BaseDriver:
         if launcher is getattr(playwright, "firefox", None):
             firefox_executable = (
                 shutil.which("firefox")
-                or shutil.which("Mozilla Firefox")
                 or shutil.which("firefox.exe")
                 or shutil.which("C:/Program Files/Mozilla Firefox/firefox.exe")
+                or shutil.which("C:/Program Files/Mozilla Firefox ESR/firefox.exe")
                 or shutil.which("C:/Program Files (x86)/Mozilla Firefox/firefox.exe")
+                or shutil.which("C:/Program Files (x86)/Mozilla Firefox ESR/firefox.exe")
             )
-            if not firefox_executable:
+            if not firefox_executable or not os.path.exists(firefox_executable):
                 await playwright.stop()
+                logger.error(
+                    "Firefox ESR executable not found; install Firefox ESR and ensure it is on PATH."
+                )
                 raise RuntimeError(
-                    "Firefox não encontrado. Instale o Firefox padrão e adicione-o ao PATH."
+                    "Firefox ESR executable not found. Install Firefox ESR and add it to PATH."
                 )
             launch_kwargs["executable_path"] = firefox_executable
 

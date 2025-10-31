@@ -412,19 +412,22 @@ async def start_amil_manual(user: str = Depends(require_auth)):
     launch_kwargs: Dict[str, Any] = {"headless": False}
     if AMIL_BROWSER_ENGINE == "firefox":
         firefox_executable = (
-            shutil.which("firefox")
-            or shutil.which("Mozilla Firefox")
-            or shutil.which("firefox.exe")
-            or shutil.which("C:/Program Files/Mozilla Firefox/firefox.exe")
-            or shutil.which("C:/Program Files (x86)/Mozilla Firefox/firefox.exe")
+            shutil.which('firefox') or
+            shutil.which('firefox.exe') or
+            shutil.which('/usr/bin/firefox') or
+            shutil.which('/usr/local/bin/firefox') or
+            shutil.which('C:/Program Files/Mozilla Firefox/firefox.exe') or
+            shutil.which('C:/Program Files/Mozilla Firefox ESR/firefox.exe') or
+            shutil.which('C:/Program Files (x86)/Mozilla Firefox/firefox.exe') or
+            shutil.which('C:/Program Files (x86)/Mozilla Firefox ESR/firefox.exe')
         )
-        if not firefox_executable:
+        if not firefox_executable or not os.path.exists(firefox_executable):
             await pw.stop()
             raise HTTPException(
                 status_code=500,
-                detail="Firefox não encontrado. Instale o Firefox padrão e adicione ao PATH.",
+                detail='Firefox ESR nao encontrado. Instale a versao ESR e garanta que esteja no PATH.'
             )
-        launch_kwargs.update({"slow_mo": 150, "executable_path": firefox_executable})
+        launch_kwargs.update({'slow_mo': 150, 'executable_path': firefox_executable})
 
     browser = await engine.launch(**launch_kwargs)
     context = await browser.new_context(
@@ -448,7 +451,7 @@ async def start_amil_manual(user: str = Depends(require_auth)):
     }
     return {
         "token": token,
-        "note": "Navegador aberto. Cole o link da Amil e carregue a página.",
+        "note": "Navegador aberto. Cole o link da Amil e carregue a pagina.",
     }
 
 
