@@ -61,10 +61,6 @@ DEFAULT_BLOCK_KEYWORDS = [
 logger = logging.getLogger(__name__)
 
 
-class BlockedRequestError(Exception):
-    """Raised when the remote website indicates an anti-bot block."""
-
-
 async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
     chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
     if not os.path.exists(chrome_path):
@@ -83,22 +79,28 @@ async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
         ignore_https_errors=True,
         viewport={"width": 1366, "height": 768},
         locale="pt-BR",
-        timezone_id="America/Sao_Paulo"
+        timezone_id="America/Sao_Paulo",
     )
 
     page = await context.new_page()
 
-    await page.add_init_script("""
+    await page.add_init_script(
+        """
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
         window.chrome = {runtime: {}};
         Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
         Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
-    """)
+        """
+    )
 
     await context.grant_permissions(["geolocation"])
 
     browser._playwright_instance = pw
     return browser, context, page
+
+
+class BlockedRequestError(Exception):
+    """Raised when the remote website indicates an anti-bot block."""
 
 
 def normalize_text(value: str) -> str:

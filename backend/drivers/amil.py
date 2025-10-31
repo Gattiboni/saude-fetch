@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import logging
 import os
 from typing import Any, Optional
 
 from .base import BaseDriver, DriverResult, BlockedRequestError
+
+
+logger = logging.getLogger(__name__)
 
 
 class AmilDriver(BaseDriver):
@@ -160,33 +164,71 @@ class AmilDriver(BaseDriver):
             self.step("Pressionando ENTER")
             await page_obj.keyboard.press("Enter")
 
+
             self.step("Aguardando resultado da consulta")
-            await asyncio.sleep(3)
 
-            self.step("Capturando screenshot de verificação de layout")
-            os.makedirs("debug", exist_ok=True)
-            await page_obj.screenshot(path=f"debug/amil_{identifier}.png")
+            debug_info = {}
 
-            parsing = (self.mapping or {}).get("result_parsing", {})
-            if parsing:
-                status, plan, message, debug = await self._parse_result(page_obj, parsing)
-            else:
-                status, plan, message, debug = "indefinido", "", "", {}
-            debug.setdefault("steps_extra", True)
+            try:
+                await page_obj.wait_for_selector("text=Plano ou rede:", timeout=8000)
+            except Exception:
+                logger.debug("[amil] Timeout aguardando campo 'Plano ou rede', tentando detectar modal.")
+                debug_info["wait_timeout"] = True
 
-            self.step(
-                f"Resultado final: status={status} | plano={plan or '-'} | mensagem={message or '-'}"
-            )
+            try:
+                aviso_modal = await page_obj.query_selector("text='Aviso'")
+                if aviso_modal:
+                    texto_modal = await page_obj.text_content("text='Nenhum resultado encontrado.'")
+                    if texto_modal:
+                        logger.debug("[amil] Resultado negativo detectado via modal.")
+                        self.step("Resultado negativo detectado via modal da Amil.")
+                        debug_info["status_source"] = "modal"
+                        return DriverResult(
+                            operator=self.operator,
+                            status="negativo",
+                            plan="-",
+                            message="Nenhum resultado encontrado.",
+                            debug=debug_info,
+                            identifier=identifier,
+                            id_type=id_type,
+                        )
+            except Exception as exc:
+                logger.debug("[amil] Nenhum modal de aviso encontrado: %s", exc)
+                debug_info["modal_error"] = str(exc)
+
+            try:
+                value_el = await page_obj.query_selector("div.search-select-redux .rw-input")
+                if value_el:
+                    plano_nome = (await value_el.text_content() or "").strip()
+                    if plano_nome and plano_nome.lower() != "plano ou rede":
+                        logger.debug("[amil] Plano detectado: %s", plano_nome)
+                        self.step(f"Resultado positivo identificado: {plano_nome}")
+                        debug_info["status_source"] = "campo_plano"
+                        return DriverResult(
+                            operator=self.operator,
+                            status="positivo",
+                            plan=plano_nome,
+                            message="Plano identificado com sucesso.",
+                            debug=debug_info,
+                            identifier=identifier,
+                            id_type=id_type,
+                        )
+            except Exception as exc:
+                logger.debug("[amil] Falha ao capturar nome do plano: %s", exc)
+                debug_info["plano_error"] = str(exc)
+
+            logger.debug("[amil] Nenhum status reconhecido: nem modal nem campo de plano renderizado.")
+            self.step("Nenhum status reconhecido após a consulta.")
+            debug_info["status_source"] = "indefinido"
             return DriverResult(
                 operator=self.operator,
-                status=status,
-                plan=plan,
-                message=message,
-                debug=debug,
+                status="erro",
+                plan="-",
+                message="status_selector ausente",
+                debug=debug_info,
                 identifier=identifier,
                 id_type=id_type,
             )
-
         if page is not None:
             try:
                 return await _run(page)
