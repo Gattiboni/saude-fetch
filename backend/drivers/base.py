@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import re
+import shutil
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -277,6 +278,20 @@ class BaseDriver:
         launch_kwargs: Dict[str, Any] = {"headless": True}
         if launcher is getattr(playwright, "chromium", None):
             launch_kwargs["args"] = ["--ignore-certificate-errors"]
+        if launcher is getattr(playwright, "firefox", None):
+            firefox_executable = (
+                shutil.which("firefox")
+                or shutil.which("Mozilla Firefox")
+                or shutil.which("firefox.exe")
+                or shutil.which("C:/Program Files/Mozilla Firefox/firefox.exe")
+                or shutil.which("C:/Program Files (x86)/Mozilla Firefox/firefox.exe")
+            )
+            if not firefox_executable:
+                await playwright.stop()
+                raise RuntimeError(
+                    "Firefox não encontrado. Instale o Firefox padrão e adicione-o ao PATH."
+                )
+            launch_kwargs["executable_path"] = firefox_executable
 
         browser = await launcher.launch(**launch_kwargs)
 

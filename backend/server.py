@@ -3,6 +3,7 @@ import os
 import uuid
 import logging
 import io
+import shutil
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -410,7 +411,20 @@ async def start_amil_manual(user: str = Depends(require_auth)):
 
     launch_kwargs: Dict[str, Any] = {"headless": False}
     if AMIL_BROWSER_ENGINE == "firefox":
-        launch_kwargs["slow_mo"] = 150
+        firefox_executable = (
+            shutil.which("firefox")
+            or shutil.which("Mozilla Firefox")
+            or shutil.which("firefox.exe")
+            or shutil.which("C:/Program Files/Mozilla Firefox/firefox.exe")
+            or shutil.which("C:/Program Files (x86)/Mozilla Firefox/firefox.exe")
+        )
+        if not firefox_executable:
+            await pw.stop()
+            raise HTTPException(
+                status_code=500,
+                detail="Firefox não encontrado. Instale o Firefox padrão e adicione ao PATH.",
+            )
+        launch_kwargs.update({"slow_mo": 150, "executable_path": firefox_executable})
 
     browser = await engine.launch(**launch_kwargs)
     context = await browser.new_context(
