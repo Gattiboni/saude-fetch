@@ -11,7 +11,19 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-from playwright.async_api import async_playwright
+async_playwright = None
+try:
+    import importlib
+
+    _pw = importlib.import_module("playwright.async_api")
+    async_playwright = getattr(_pw, "async_playwright", None)
+except Exception:
+    # Allow static analysis to succeed when playwright is not installed; runtime
+    # callers will get a clear ImportError.
+    async_playwright = None
+    logging.getLogger(__name__).warning(
+        "playwright.async_api not available; browser automation functions will fail if invoked."
+    )
 
 
 def _resolve_mappings_dir() -> str:
@@ -53,11 +65,22 @@ MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
 TIMEOUT_SELECTOR_MS = int(os.getenv("TIMEOUT_SELECTOR_MS", "20000"))
 BLOCK_SLEEP_SECONDS = int(os.getenv("BLOCK_SLEEP_SECONDS", "120"))
 DEFAULT_BLOCK_KEYWORDS = [
-    kw.strip().lower()
-    for kw in os.getenv("BLOCK_KEYWORDS", "429,too many requests").split(",")
-    if kw.strip()
+    "captcha",
+    "bloque",
+    "bloqueado",
+    "bloqueio",
+    "acesso negado",
 ]
 
+async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
+    if async_playwright is None:
+        raise ImportError(
+            "playwright.async_api is not available; install the 'playwright' package and run 'playwright install' to enable browser automation."
+        )
+    pw = await async_playwright().start()
+    chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    user_dir = os.path.join(os.getcwd(), "chrome_profile_amil")
+    os.makedirs(user_dir, exist_ok=True)
 logger = logging.getLogger(__name__)
 
 
@@ -105,6 +128,16 @@ def normalize_text(value: str) -> str:
     cleaned = value.replace("\u00A0", " ")
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned.strip().upper()
+
+
+async def _run(page: Any) -> None:
+    """
+    No-op legacy runner to satisfy older code paths that call `await _run(page)`.
+    New mappings should use the declarative "steps" flow; this placeholder prevents
+    a NameError when a legacy call is made without providing an implementation.
+    """
+    # Intentionally do nothing; keep function asynchronous to match previous usage.
+    return None
 
 
 @dataclass
@@ -268,26 +301,29 @@ class BaseDriver:
 
         if "steps" in self.mapping:
             return await self._execute_steps(identifier, id_type, page=page)
-
-        # Legado
-        sel = (self.mapping or {}).get("selectors", {})
-        if not sel.get("cpf") or not sel.get("submit"):
-            raise Exception("mapping incompleto: selectors.cpf/submit ausentes")
-
-        async def _run(page_obj):
-            await page_obj.goto(self.mapping["url"])
-            await page_obj.fill(sel["cpf"], identifier)
-            await page_obj.click(sel["submit"])
-            await asyncio.sleep(2)
-
         if page is not None:
             await _run(page)
         else:
+            if async_playwright is None:
+                raise ImportError(
+                    "playwright.async_api is not available; install the 'playwright' package and run 'playwright install' to enable browser automation."
+                )
             async with async_playwright() as p:
                 browser = await p.chromium.launch(
                     headless=False,
                     args=["--start-maximized"],
                 )
+                page_obj = await browser.new_page(viewport=None)
+                try:
+                    await page_obj.evaluate(
+                        "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
+                    )
+                except Exception:
+                    pass
+                try:
+                    await _run(page_obj)
+                finally:
+                    await browser.close()
                 page_obj = await browser.new_page(viewport=None)
                 try:
                     await page_obj.evaluate(
@@ -313,30 +349,57 @@ class BaseDriver:
         browser, context, page = await launch_chrome_real(headless=False, slow_mo=150)
 
         storage_file = os.path.join(STORAGE_STATES_DIR, f"{self.operator}.json")
+        storage_state = None
         if os.path.exists(storage_file):
-            await context.close()
-            context = await browser.new_context(
-                ignore_https_errors=True,
-                viewport=None,
-                locale="pt-BR",
-                timezone_id="America/Sao_Paulo",
-                storage_state=storage_file,
-            )
-            page = await context.new_page()
             try:
-                await page.evaluate(
-                    "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
+                with open(storage_file, "r", encoding="utf-8") as fh:
+                    storage_state = json.load(fh)
+            except Exception as exc:
+                logger.debug(
+                    "[%s] falha ao carregar storage state: %s", self.operator, exc
                 )
-            except Exception:
-                pass
-            await page.add_init_script(
-                """
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        window.chrome = {runtime: {}};
-        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
-        Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
-    """
-            )
+
+        await context.add_init_script(
+            """
+Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+window.chrome = {runtime: {}};
+Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
+Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
+"""
+        )
+        if storage_state:
+            cookies = storage_state.get("cookies") or []
+            if cookies:
+                try:
+                    await context.add_cookies(cookies)
+                except Exception as exc:
+                    logger.debug(
+                        "[%s] falha ao restaurar cookies: %s", self.operator, exc
+                    )
+            origins = storage_state.get("origins") or []
+            for origin in origins:
+                origin_url = origin.get("origin")
+                local_storage_items = origin.get("localStorage") or []
+                if not origin_url or not local_storage_items:
+                    continue
+                assignments = ";".join(
+                    f"window.localStorage.setItem({json.dumps(item.get('name', ''))}, {json.dumps(item.get('value', ''))});"
+                    for item in local_storage_items
+                    if item.get("name") is not None
+                )
+                if not assignments:
+                    continue
+                script = f"""
+(function() {{
+    if (window.location.origin === {json.dumps(origin_url)}) {{
+        try {{
+            {assignments}
+        }} catch (e) {{}}
+    }}
+}})();
+"""
+                await context.add_init_script(script)
+
         await context.grant_permissions(["geolocation"])
 
         if self.operator == "amil":

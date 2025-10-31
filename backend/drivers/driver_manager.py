@@ -91,7 +91,7 @@ class DriverManager:
         identifiers: List[str],
         id_type: str,
         *,
-        cache: Optional["Cache"] = None,
+        cache: Optional[object] = None,
         db: Optional[object] = None,
         progress_callback: Optional[
             Callable[[str, BaseDriver, DriverResult, bool], Awaitable[None]]
@@ -150,7 +150,7 @@ class DriverManager:
         identifiers: List[str],
         id_type: str,
         *,
-        cache: Optional["Cache"] = None,
+        cache: Optional[object] = None,
         db: Optional[object] = None,
         progress_callback: Optional[
             Callable[[str, BaseDriver, DriverResult, bool], Awaitable[None]]

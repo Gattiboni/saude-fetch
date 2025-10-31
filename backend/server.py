@@ -94,8 +94,9 @@ for d in _required_dirs:
     os.makedirs(d, exist_ok=True)
 
 # --- Mongo ---
-mongo_client: Optional[AsyncIOMotorClient] = None
-mongo_db: Optional[AsyncIOMotorDatabase] = None
+# Use broad types here to avoid type-evaluation issues in environments without stubs
+mongo_client: Optional[Any] = None
+mongo_db: Optional[Any] = None
 MONGO_URL = os.environ.get("MONGO_URL")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "saude_fetch")
 
@@ -139,18 +140,7 @@ async def get_db():
     return mongo_db
 
 
-async def _find_job_doc(db: AsyncIOMotorDatabase, job_id: str) -> Optional[Dict[str, Any]]:
-    doc = await db.jobs.find_one({"_id": job_id})
-    if doc:
-        return doc
-    try:
-        oid = ObjectId(job_id)
-    except Exception:
-        return None
-    return await db.jobs.find_one({"_id": oid})
-
-
-async def _find_job_doc(db: AsyncIOMotorDatabase, job_id: str) -> Optional[Dict[str, Any]]:
+async def _find_job_doc(db: Any, job_id: str) -> Optional[Dict[str, Any]]:
     doc = await db.jobs.find_one({"_id": job_id})
     if doc:
         return doc
@@ -717,7 +707,7 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
         success = 0
         error = 0
         processed = 0
-        drivers = driver_manager.drivers
+        drivers = list(driver_manager.drivers.values())
         job_logger.info("identifiers_loaded", total=total)
 
         invalid_identifiers: List[str] = []
@@ -883,118 +873,13 @@ async def process_job(job_id: str, path: str, forced_type: str = "auto"):
                 continue
 
             for drv in active_drivers:
-                driver_name = getattr(drv, "operator", getattr(drv, "name", "unknown"))
-                logger.info(
-                    f"🚀 Iniciando driver {driver_name} com {len(identifiers)} CPFs"
+                driver_name = (
+                    getattr(drv, "operator", None)
+                    or getattr(drv, "name", None)
+                    or drv.__class__.__name__.lower()
                 )
-                print(
-                    f"[DEBUG] Rodando driver: {driver_name} - {len(identifiers)} CPFs"
-                )
-
-            expected = len(active_drivers)
-            for ident in identifiers:
-                identifier_meta[ident] = {"expected": expected, "id_type": id_type}
-
-            await driver_manager.run_batch(
-                identifiers,
-                id_type,
-                cache=cache,
-                db=db,
-                progress_callback=handle_progress,
-            )
-
-            for ident in list(identifiers):
-                if ident in identifier_meta:
-                    await finalize_identifier(ident)
-
-        if results_buffer:
-            for ident in list(results_buffer.keys()):
-                await finalize_identifier(ident)
-
-            for entry in entries:
-                detail_entry = {
-                    "input": identifier,
-                    "type": meta.get("id_type", forced_type),
-                    "operator": entry.operator,
-                    "status": entry.status,
-                    "plan": entry.plan,
-                    "message": entry.message,
-                    "captured_at": entry.captured_at,
-                    "debug": entry.debug,
-                }
-                results.append(detail_entry)
-                detailed_entries.append(detail_entry)
-
-            await update_job_progress()
-            job_logger.info(
-                "identifier_processed",
-                identifier=identifier,
-                id_type=meta.get("id_type", forced_type),
-                drivers=len(entries),
-                success=has_success,
-            )
-
-        async def handle_progress(
-            identifier: str, driver: BaseDriver, result: DriverResult, from_cache: bool
-        ) -> None:
-            meta = identifier_meta.get(identifier)
-            if not meta:
-                return
-            debug_info = dict(result.debug or {})
-            if from_cache:
-                debug_info["cache_hit"] = True
-            result.debug = debug_info
-            job_logger.info(
-                "driver_result",
-                identifier=identifier,
-                id_type=meta.get("id_type", forced_type),
-                driver=driver.name,
-                status=result.status,
-                plan=result.plan,
-                message=result.message,
-                cached=from_cache,
-                debug=debug_info,
-            )
-            results_buffer[identifier].append(result)
-            if len(results_buffer[identifier]) >= meta.get("expected", 0):
-                await finalize_identifier(identifier)
-
-        for id_type, identifiers in grouped.items():
-            if not identifiers:
-                continue
-            active_drivers = [
-                drv
-                for drv in drivers
-                if id_type in getattr(drv, "supported_id_types", ("cpf",))
-            ]
-            if not active_drivers:
-                for ident in identifiers:
-                    detail_entry = {
-                        "input": ident,
-                        "type": id_type,
-                        "operator": "",
-                        "status": "erro",
-                        "plan": "",
-                        "message": "nenhum driver suporta este tipo",
-                        "captured_at": datetime.utcnow().isoformat(),
-                        "debug": {"reason": "unsupported_id_type"},
-                    }
-                    results.append(detail_entry)
-                    detailed_entries.append(detail_entry)
-                    error += 1
-                    processed += 1
-                    job_logger.error(
-                        "identifier_unsupported",
-                        identifier=ident,
-                        id_type=id_type,
-                    )
-                    await update_job_progress()
-                continue
-
-            for drv in active_drivers:
-                driver_name = getattr(drv, "operator", getattr(drv, "name", "unknown"))
                 logger.info(
-                    f"🚀 Iniciando driver {driver_name} com {len(identifiers)} CPFs"
+                    f"Iniciando driver {driver_name} com {len(identifiers)} CPFs"
                 )
                 print(
                     f"[DEBUG] Rodando driver: {driver_name} - {len(identifiers)} CPFs"
