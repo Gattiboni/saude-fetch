@@ -75,16 +75,39 @@ class AmilDriver(BaseDriver):
             await page_obj.screenshot(path="debug/amil_debug.png", full_page=True)
             print("[DEBUG] Screenshot salva em debug/amil_debug.png")
 
-            self.step("Lendo texto renderizado no corpo da pÃ¡gina")
-            page_text = await page_obj.evaluate("() => document.body.innerText || ''")
+            raw_html = await page_obj.content()
+
+            try:
+                normalized_html = raw_html.encode("latin1").decode("utf-8", errors="ignore")
+            except Exception:
+                normalized_html = raw_html
+            normalized_html = (
+                normalized_html.replace("Ã¡", "á")
+                .replace("Ã©", "é")
+                .replace("Ãª", "ê")
+                .replace("Ã£", "ã")
+                .replace("Ã³", "ó")
+            )
+
+            visible_text = await page_obj.inner_text("body")
+            visible_text_norm = (
+                visible_text.lower()
+                .replace("Ã¡", "á")
+                .replace("Ã©", "é")
+                .replace("Ãª", "ê")
+                .replace("Ã£", "ã")
+                .replace("Ã³", "ó")
+            )
+
+            self.step("Varredura textual pós-normalização concluída.")
 
             if (
-                "BeneficiÃ¡rio ou CPF" not in page_text
-                and "Beneficiario ou CPF" not in page_text
+                "beneficiário" not in visible_text_norm
+                and "beneficiario" not in visible_text_norm
             ):
-                raise Exception(
-                    "Texto 'BeneficiÃ¡rio ou CPF' nÃ£o encontrado na tela (SPA possivelmente nÃ£o renderizou)."
-                )
+                raise Exception("Texto 'Beneficiário ou CPF' não encontrado — possível mismatch de encoding.")
+
+            self.step("Texto 'Beneficiário ou CPF' localizado com sucesso (encoding normalizado).")
 
             self.step("Buscando input associado ao texto encontrado")
             cpf_input = None
@@ -98,7 +121,7 @@ class AmilDriver(BaseDriver):
                 if await cpf_locator.count():
                     candidate = await cpf_locator.nth(0).element_handle()
                     if candidate:
-                        tag_name = await candidate.evaluate("(el) => el.tagName?.toLowerCase?.() or ''")
+                        tag_name = await candidate.evaluate("(el) => (el.tagName || '').toLowerCase()")
                         if tag_name == 'input':
                             cpf_input = candidate
             except Exception:
@@ -110,7 +133,7 @@ class AmilDriver(BaseDriver):
                 )
                 if candidate:
                     placeholder_check = (await candidate.get_attribute("placeholder") or "").lower()
-                    is_visible = await page_obj.evaluate("(el) => el and el.offsetParent is not None", candidate)
+                    is_visible = await page_obj.evaluate("(el) => Boolean(el and el.offsetParent)", candidate)
                     if is_visible and ('beneficiário' in placeholder_check or 'beneficiario' in placeholder_check or 'cpf' in placeholder_check):
                         cpf_input = candidate
 
