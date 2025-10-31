@@ -49,45 +49,42 @@
     {
       "action": "wait_for",
       "selector": [
-        "text=/beneficiário/i",
-        "text=/cartão/i",
-        "text=/campo obrigatório/i",
-        "text=/cpf inválido/i",
-        ".bs-modal__body",
-        ".bs-alert__title",
+        "div.bs-modal__container strong.bs-alert__title",
         ".input-redux__error span",
-        ".input-redux__error"
+        ".input-redux__error",
+        "text=/cpf inválido/i",
+        "text=/campo obrigatório/i"
       ],
       "timeout_ms": 20000
+    },
+    {
+      "action": "keypress",
+      "key": "Escape",
+      "timeout_ms": 5000
+    },
+    {
+      "action": "sleep",
+      "seconds": 0.5
     }
   ],
   "result_parsing": {
     "status_selectors": [
-      "text=/beneficiário/i",
-      "text=/cartão/i",
-      "text=/campo obrigatório/i",
-      "text=/cpf inválido/i",
-      ".bs-modal__body",
-      ".bs-alert__title",
+      "div.bs-modal__container strong.bs-alert__title",
       ".input-redux__error span",
-      ".input-redux__error"
+      ".input-redux__error",
+      "text=/cpf inválido/i",
+      "text=/campo obrigatório/i"
     ],
     "status_timeout_ms": 20000,
     "status_poll_interval_ms": 400,
     "positive_keywords": [
-      "selecione o beneficiário",
-      "escolha o beneficiário",
-      "beneficiário encontrado",
-      "cartão",
-      "plano",
-      "ativo"
+      "SELECIONE O BENEFICIÁRIO"
     ],
     "negative_keywords": [
-      "beneficiário não encontrado",
-      "dados inválidos",
-      "campo obrigatório",
-      "cpf incorreto",
-      "não encontramos"
+      "BENEFICIÁRIO NÃO ENCONTRADO",
+      "CPF INVÁLIDO",
+      "CAMPO OBRIGATÓRIO",
+      "NÃO ENCONTRAMOS"
     ],
     "error_keywords": [
       "erro",
