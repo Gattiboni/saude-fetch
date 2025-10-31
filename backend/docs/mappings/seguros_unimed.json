@@ -1,33 +1,37 @@
 {
-  "meta": { "provider": "seguros-unimed", "task": "cpf-eligibility", "version": "1.0.0" },
-  "navigate": {
-    "url": "https://www.segurosunimed.com.br/guia-medico/",
-    "expand_recursively": true,
-    "reuse_page": true
-  },
-  "inputs": {
-    "cpf": { "selector": "input[placeholder='Informe o CPF ou número do cartão']", "type": "text", "mask": "cpf", "submit": "none", "clear": true }
-  },
-  "steps": [
-    { "wait": { "ms": 3000 } },
-    {
-      "conditional": [
-        {
-          "if": { "exists": { "selector": "p.s-input-feedback.s-input-feedback-invalid", "text_contains": "Não localizamos plano para o CPF informado" } },
-          "then": [
-            { "set": { "result": "negative", "reason": "Não localizamos plano" } }
-          ]
-        },
-        {
-          "if": { "exists": { "selector": ".col-lg-4.d-flex.flex-row.align-items-center.mb-4 > p.s-text.s-text-secondary" } },
-          "then": [
-            { "set": { "result": "positive" } },
-            { "extract": { "plan_name": { "selector": ".col-lg-4.d-flex.flex-row.align-items-center.mb-4 > p.s-text.s-text-secondary", "attribute": "innerText" } } }
-          ]
-        }
-      ]
-    }
+  "operator": "seguros_unimed",
+  "start_url": "https://www.segurosunimed.com.br/",
+  "wait_for_any": "input[type='text'], input#cpf, input[name*='cpf']",
+  "block_indicators": [
+    "text=/verifique se você é humano/i",
+    "text=/temporariamente indisponível/i"
   ],
-  "loop": { "reenter_on": "next_input", "keep_page_open": true },
-  "errors": { "on_timeout": "retry_once_then_fail" }
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "https://www.segurosunimed.com.br/",
+      "timeout_ms": 20000
+    },
+    {
+      "action": "click",
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar')",
+      "timeout_ms": 3000,
+      "optional": true
+    },
+    {
+      "action": "wait_for_timeout",
+      "timeout_ms": 300
+    },
+    {
+      "action": "fill",
+      "selector": "input#cpf, input[name*='cpf'], input[type='text']",
+      "timeout_ms": 20000
+    },
+    {
+      "action": "keypress",
+      "selector": "input#cpf, input[name*='cpf'], input[type='text']",
+      "key": "Enter",
+      "timeout_ms": 15000
+    }
+  ]
 }

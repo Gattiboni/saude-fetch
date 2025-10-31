@@ -1,29 +1,30 @@
 {
-  "meta": { "provider": "unimed", "task": "cpf-eligibility", "version": "1.0.0" },
-  "navigate": {
-    "url": "https://www.unimed.coop.br/site/guia-medico#/",
-    "expand_recursively": true,
-    "reuse_page": true,
-    "geolocation": "allow_if_asked"
-  },
-  "inputs": {
-    "cpf": { "selector": "#client-input", "type": "text", "mask": "cpf", "submit": "none", "clear": true }
-  },
+  "operator": "unimed",
+  "start_url": "https://www.unimed.coop.br/site/guia-medico#/",
+  "wait_for_any": "#client-input",
+  "block_indicators": [
+    "text=/erro/i",
+    "text=/muitos acessos/i"
+  ],
   "steps": [
     {
       "action": "navigate",
       "target": "https://www.unimed.coop.br/site/guia-medico#/",
-      "wait_for_any": [
-        "#client-input",
-        "input[name*='cpf' i]",
-        "input[placeholder*='cpf' i]"
-      ],
       "timeout_ms": 20000
+    },
+    {
+      "action": "click",
+      "selector": "#onetrust-accept-btn-handler, button[id*='onetrust'], button[data-testid='accept-all'], button:has-text('Aceitar'), button:has-text('Continuar')",
+      "timeout_ms": 3000,
+      "optional": true
+    },
+    {
+      "action": "wait_for_timeout",
+      "timeout_ms": 300
     },
     {
       "action": "fill",
       "selector": "#client-input",
-      "value": "{identifier}",
       "timeout_ms": 20000
     },
     {
@@ -35,32 +36,5 @@
       ],
       "timeout_ms": 20000
     }
-  ],
-  "result_parsing": {
-    "status_selectors": [
-      "text=/UNIMED/i",
-      "#NameIdenticadedUser",
-      ".ClientInputWithLabel--text"
-    ],
-    "status_timeout_ms": 20000,
-    "status_poll_interval_ms": 300,
-    "positive_keywords": [
-      "UNIMED",
-      "PLANO",
-      "COOPERADO",
-      "BENEFICIÁRIO",
-      "ATIVO"
-    ],
-    "negative_keywords": [
-      "É CLIENTE? DIGITE SEU CPF OU CARTEIRINHA",
-      "INVÁLIDO",
-      "NÃO ENCONTRADO"
-    ],
-    "error_keywords": [
-      "ERRO",
-      "INVÁLIDO",
-      "NÃO ENCONTRADO"
-    ]
-  },
-  "notes": "O preenchimento do CPF dispara automaticamente a verificação. O driver inclui heurísticas adicionais para procurar rótulos UNIMED visíveis próximos ao campo."
+  ]
 }

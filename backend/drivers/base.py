@@ -82,12 +82,12 @@ async def launch_chrome_real(headless: bool = False, slow_mo: int = 150):
         )
     pw = await async_playwright().start()
     chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-    user_dir = os.path.join(os.getcwd(), "chrome_profile_amil")
-    os.makedirs(user_dir, exist_ok=True)
+    profile_path = os.path.join(os.getcwd(), "chrome_profile_amil")
+    os.makedirs(profile_path, exist_ok=True)
 
     # Abre Chrome real com contexto persistente e janela separada
     browser_context = await pw.chromium.launch_persistent_context(
-        user_dir,
+        user_data_dir=profile_path,
         headless=False,
         slow_mo=slow_mo,
         executable_path=chrome_path,
@@ -170,7 +170,8 @@ class BaseDriver:
 
         if os.path.exists(self.mapping_path):
             try:
-                with open(self.mapping_path, "r", encoding="utf-8") as f:
+                # utf-8-sig tolerates files saved with BOM and plain UTF-8
+                with open(self.mapping_path, "r", encoding="utf-8-sig") as f:
                     self.mapping = json.load(f)
             except Exception as e:
                 print(f"[{self.operator}] erro ao carregar mapping: {e}")
@@ -186,7 +187,8 @@ class BaseDriver:
             )
             self.mapping_path = resolved_path
         try:
-            with open(self.mapping_path, "r", encoding="utf-8") as f:
+            # utf-8-sig tolerates files saved with BOM and plain UTF-8
+            with open(self.mapping_path, "r", encoding="utf-8-sig") as f:
                 self.mapping = json.load(f)
         except Exception as e:
             self.mapping = None
@@ -195,6 +197,21 @@ class BaseDriver:
     def step(self, message: str) -> None:
         logger.debug(f"[{self.operator}] {message}")
         print(f"[DEBUG] [{self.operator}] {message}")
+
+    def _log_action(
+        self,
+        action: str,
+        *,
+        selector: Optional[str] = None,
+        target: Optional[str] = None,
+        key: Optional[str] = None,
+    ) -> None:
+        detail = selector or target or key or ""
+        message = f"[{self.operator}] {action}"
+        if detail:
+            message = f"{message}: {detail}"
+        logger.info(message)
+        print(message)
 
     def log_exception(self, error: Exception) -> None:
         logger.error(f"[{self.operator}] ERRO durante execucao: {error}")
@@ -308,17 +325,6 @@ class BaseDriver:
                     headless=False,
                     args=["--start-maximized"],
                 )
-                page_obj = await browser.new_page(viewport=None)
-                try:
-                    await page_obj.evaluate(
-                        "window.moveTo(0,0); window.resizeTo(screen.width, screen.height);"
-                    )
-                except Exception:
-                    pass
-                try:
-                    await _run(page_obj)
-                finally:
-                    await browser.close()
                 page_obj = await browser.new_page(viewport=None)
                 try:
                     await page_obj.evaluate(
@@ -444,12 +450,11 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
 
         try:
             if url:
-                self.step(f"Navegando para {url}")
+                self._log_action("navigate", target=url)
                 await page.goto(url)
                 run_debug.setdefault("navigation", {}).update({"target": url})
 
             for idx, step in enumerate(steps):
-                self.step(f"Executando passo {idx}: {step.get('action', 'desconhecido')}")
                 await self._run_step(page, step, identifier, run_debug, idx)
 
             block_indicators = [
@@ -461,13 +466,11 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 block_indicators = list(DEFAULT_BLOCK_KEYWORDS)
 
             if block_indicators:
-                self.step("Verificando indicadores de bloqueio")
                 html_snapshot = (await page.content()).lower()
                 if any(indicator in html_snapshot for indicator in block_indicators):
                     run_debug.setdefault("block_detected", True)
                     raise BlockedRequestError("indicativo de bloqueio detectado na pagina")
 
-            self.step("Verificando elemento de sucesso e extraindo resultado")
             status, plan, message, parse_debug = await self._parse_result(page, parsing)
             run_debug.update(parse_debug)
         except Exception as error:
@@ -486,10 +489,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 id_type=id_type,
             )
 
-        self.step(
-            f"Resultado final: status={status} | plano={plan or '-'} | mensagem={message or '-'}"
-        )
-        return DriverResult(
+        result = DriverResult(
             operator=self.operator,
             status=status,
             plan=plan,
@@ -498,6 +498,15 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             identifier=identifier,
             id_type=id_type,
         )
+
+        if run_debug.get("block_detected") and str(result.status or "").lower() == "indefinido":
+            raise Exception("indicativo de bloqueio detectado na pagina")
+
+        logger.info(
+            f"[{self.operator}] status={status or '-'} | plano={plan or '-'} | mensagem={message or '-'}"
+        )
+        print(f"[{self.operator}] status={status or '-'} | plano={plan or '-'} | mensagem={message or '-'}")
+        return result
 
     async def _run_step(
         self,
@@ -528,26 +537,28 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             wait_for_any = [wait_for_any]
 
         try:
+            self._log_action(
+                action or "desconhecido",
+                selector=step.get("selector"),
+                target=step.get("target"),
+                key=step.get("key"),
+            )
             if action == "navigate":
                 target = step.get("target") or self.mapping.get("url")
                 if target:
-                    self.step(f"Navegando para {target}")
                     await page.goto(target)
                 wait_for = step.get("wait_for")
                 if isinstance(wait_for, list):
-                    self.step("Aguardando um dos seletores de destino ficar visivel")
                     matched = await self._wait_for_any(
                         page, wait_for, timeout, state="visible"
                     )
                     step_log["matched_wait_for"] = matched
                 elif wait_for:
-                    self.step(f"Aguardando selector {wait_for}")
                     await page.locator(wait_for).first.wait_for(
                         state="visible", timeout=timeout
                     )
                     step_log["matched_wait_for"] = wait_for
                 if wait_for_any:
-                    self.step("Aguardando qualquer selector adicional configurado")
                     matched = await self._wait_for_any(
                         page, wait_for_any, timeout, state="visible"
                     )
@@ -557,9 +568,7 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 if not selector:
                     raise ValueError("fill action requer 'selector'")
                 val = (step.get("value") or "").replace("{identifier}", identifier)
-                self.step(f"Preenchendo campo {selector} com valor {val}")
                 await page.fill(selector, val, timeout=timeout)
-                self.step("Campo preenchido com sucesso")
             elif action == "click":
                 selector = step.get("selector")
                 if not selector:
@@ -569,18 +578,15 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                     click_kwargs["force"] = True
                 if step.get("no_wait_after") is not None:
                     click_kwargs["no_wait_after"] = bool(step.get("no_wait_after"))
-                self.step(f"Clicando no elemento {selector}")
                 await page.click(selector, **click_kwargs)
             elif action == "keypress":
                 key = step.get("key", "Enter")
-                self.step(f"Pressionando tecla {key}")
                 await self.keypress(page, step.get("selector"), key=key, timeout=timeout)
                 self.step(f"Tecla {key} enviada")
             elif action == "keyboard":
                 key = step.get("key")
                 if not key:
                     raise ValueError("keyboard action requer 'key'")
-                self.step(f"Pressionando tecla {key} (keyboard)")
                 await page.keyboard.press(key)
                 self.step(f"Tecla {key} enviada")
                 step_log["key"] = key
@@ -588,12 +594,10 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 expression = step.get("expression")
                 if not expression:
                     raise ValueError("evaluate action requer 'expression'")
-                self.step("Executando script customizado (evaluate)")
                 result = await page.evaluate(expression)
                 step_log["evaluation_result"] = result
             elif action == "wait_for_timeout":
                 delay_ms = int(step.get("timeout_ms", 0))
-                self.step(f"Aguardando {delay_ms} ms antes de continuar")
                 if delay_ms > 0:
                     await page.wait_for_timeout(delay_ms)
                 step_log["waited_ms"] = delay_ms
@@ -602,7 +606,6 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                 if not selector:
                     raise ValueError("wait_for action requer 'selector'")
                 if isinstance(selector, list):
-                    self.step("Aguardando qualquer selector configurado ficar disponivel")
                     matched = await self._wait_for_any(
                         page,
                         selector,
@@ -611,18 +614,15 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                     )
                     step_log["matched_wait_for"] = matched
                 else:
-                    self.step(f"Aguardando selector {selector}")
                     await page.locator(selector).first.wait_for(
                         state=step.get("state", "visible"), timeout=timeout
                     )
                     step_log["matched_wait_for"] = selector
             elif action == "wait_for_state":
                 state = step.get("state", "load")
-                self.step(f"Aguardando estado de carregamento {state}")
                 await page.wait_for_load_state(state)
             elif action == "sleep":
                 post_delay = float(step.get("seconds", 0.0))
-                self.step(f"Aguardando {post_delay} segundos antes de continuar")
             else:
                 raise ValueError(f"acao desconhecida: {action}")
             step_log["status"] = "ok"
@@ -641,13 +641,11 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
             if post_wait_selector:
                 try:
                     if isinstance(post_wait_selector, list):
-                        self.step("Aguardando pos-acao por qualquer selector configurado")
                         matched = await self._wait_for_any(
                             page, post_wait_selector, timeout, state="visible"
                         )
                         step_log["matched_post_wait"] = matched
                     else:
-                        self.step(f"Aguardando pos-acao pelo selector {post_wait_selector}")
                         await page.locator(post_wait_selector).first.wait_for(
                             state="visible", timeout=timeout
                         )
@@ -657,7 +655,6 @@ Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt']});
                         self.log_exception(wait_err)
                         step_log.setdefault("warnings", []).append(str(wait_err))
             elif post_delay:
-                self.step(f"Aguardando {post_delay} segundos (delay configurado)")
                 await page.wait_for_timeout(int(post_delay * 1000))
 
         run_debug.setdefault("steps", []).append(step_log)

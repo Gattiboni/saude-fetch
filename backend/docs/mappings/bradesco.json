@@ -1,5 +1,9 @@
-﻿{
-  "meta": { "provider": "bradesco", "task": "cpf-eligibility", "version": "1.0.0" },
+{
+  "meta": {
+    "provider": "bradesco",
+    "task": "cpf-eligibility",
+    "version": "1.0.0"
+  },
   "navigate": {
     "url": "https://www.bradescoseguros.com.br/clientes/produtos/plano-saude/consulta-de-rede-referenciada",
     "expand_recursively": true,
@@ -13,13 +17,24 @@
   },
   "guards": {
     "captcha": {
-      "selectors": ["iframe[title*='captcha']", "div.g-recaptcha", "div.hcaptcha-box", "div[aria-label*='captcha']"],
+      "selectors": [
+        "iframe[title*='captcha']",
+        "div.g-recaptcha",
+        "div.hcaptcha-box",
+        "div[aria-label*='captcha']"
+      ],
       "strategy": "abort",
       "report": "CAPTCHA detected - aborting as requested"
     }
   },
   "inputs": {
-    "cpf": { "selector": "#searchCpfOrCard", "type": "text", "mask": "cpf", "submit": "enter", "clear": true }
+    "cpf": {
+      "selector": "#searchCpfOrCard",
+      "type": "text",
+      "mask": "cpf",
+      "submit": "enter",
+      "clear": true
+    }
   },
   "steps": [
     {
